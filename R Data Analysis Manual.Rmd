@@ -1,0 +1,463 @@
+---
+title: "R Data Analysis Manual"
+author: "Abu Nayeem"
+date: "September 16, 2014"
+output: html_document
+---
+
+Standardization: Multiple columns you need to pick which columns interested or function to change only numeric vectors 
+
+```{r}
+ScalCC<-scale(CC)
+Scaledframe<-as.data.frame(ScaledNum)
+Stantraining<-cbind(Scaledframe,NonNum)
+
+# manual method
+g <- mean(mtcars$mpg)
+h <- sqrt(var(mtcars$mpg))
+stan <- (mtcars$mpg-g)/h
+```
+
+
+
+
+library(sampling)
+library(lmtest)
+
+
+Plyr transformations:
+Two questions:
+
+1) What is the class of your input object?
+2) What is the class of your desired output object?
+    If you want to split a data frame, and return results as a data frame, you use ddply
+    If you want to split a data frame, and return results as a list, you use dlply
+    If you want to split a list, and return results as a data frame, you use ldply
+    
+    Transform: Create columns under certain conditions
+```{r}
+oldmendat <- ddply(.data = cleandat, .variables = .(race), mutate, old = ifelse(age65 == 
+    "65 or over", 1, 0), old.man = ifelse(old == 1 & sex == "male", 1, 0))
+```
+
+    Dummy Variables
+    
+#### Regression: 
+glm is general and lm is normal (gausian model)
+
+There are a whole bunch of families and links to use (help(family) for a full list), but some essentials are binomial(link = “logit”), gaussian(link = “identity”), and poisson(link = “log”)
+
+    Linear Regression:
+```{r}
+A<-glm(formula = old.man ~ partyid + factor(income) + relign8:blah, family = binomial(link = "logit")    
+```
+
+    Useful Post Data:
+```{r}
+objects(A); names(A) # everthing stored within this object
+A$coefficients 
+A$df.residual
+SumA<-summary(A)
+SumA # looks incredibly neat compared to original A
+objects(SumA)
+SumA$coefficients 
+```
+
+    Regression Diagnostics:    
+```{r}
+library(lmtest)
+bptest(A) # Test for heteroskedascity
+# Also have tests for autocorrelation of disturbances (Durwin-Watson), higher-order serial correlation (Breusch-Godfrey)
+# Can also estimate heteroskedasticity/autocorrelation consistent standard errors via coeftest and the sandwich package
+coeftest(x = oldman.reg, vcov. = vcovHC)
+#For panel data, the plm package also allows you to compute panel-corrected (Beck-Katz) standard errors
+```
+
+
+    Ttest & Ztest:
+```{r}
+t.test(1:9, mu=1100, std=30,  conf.level = .95)
+#z test of 5% 
+mn <- mean(mtcars$mpg); 
+s <- sd(mtcars$mpg); 
+z <- qnorm(.05)
+mu0 <- mn - z * s / sqrt(nrow(mtcars))
+```
+
+    Comparing Models using Anova: test if other models are different
+```{r}
+a<- lm(mpg ~ cyl+ wt, mtcars)
+b<- update(a,mpg ~ cyl+ wt +cyl*wt) # place second regression
+c<- update(a,mpg ~ cyl + qsec)
+anova(a,b) # creates a variance analysis table
+anove(a,b,c) # compares three models
+```
+
+    Sample simulation problem
+Consider a uniform distribution. Sample 100 draws with mean 0.5, and variance 1/12).
+what is the probability of getting as large as 0.51 expressed to 3 decimal places?
+```{r}
+round(pnorm(.51, mean = 0.5, sd = sqrt(1 / 12 / 100), lower.tail = FALSE), 3) #0.365
+# lower.tail= FALSE captures P[X>x] i.e. probbaility to the right
+```
+Calculate a 95% confidence interval to the nearest MPG.
+```{r}
+round(t.test(mtcars$mpg)$conf.int)
+```
+
+1. A pharmaceutical company is interested in testing a potential blood pressure lowering medication. Their first examination considers only subjects that received the medication at baseline then two weeks later. The data are as follows (SBP in mmHg)
+Subject    Baseline	Week 2
+1	140	132
+2	138	135
+3	150	151
+4	148	146
+5	135	130
+Consider testing the hypothesis that there was a mean reduction in blood pressure? Give the P-value for the associated two sided test.
+
+```{r}
+x<- c(140,138,150,148,135)
+y<- c(132,135,151,146,130)
+p <- t.test(x, y, paired = TRUE, alternative="two.sided", var.equal=FALSE)$p.value
+p
+```
+
+A sample of 9 men yielded a sample average brain volume of 1,100cc and a standard deviation of 30cc. What is the complete set of values of μ0 that a test of H0:μ=μ0 would fail to reject the null hypothesis in a two sided 5% Students t-test?
+
+```{r}
+# mean + range * qt(p value, degree freedom) * standard deviation/sqroot(sample size)
+1100 +c(-1,1) * qt(0.975,8) * 30/sqrt(9) # qt is student t distribution
+```
+
+Researchers conducted a blind taste test of Coke versus Pepsi. Each of four people was asked which of two blinded drinks given in random order that they preferred. The data was such that 3 of the 4 people chose Coke. Assuming that this sample is representative, report a P-value for a test of the hypothesis that Coke is preferred to Pepsi using a one sided exact test.
+
+```{r}
+# logic- there is only two options so binormial; the expected probability is p=0.5; 3-1 for outcomes
+pbinom(2, size = 4, prob = 0.5, lower.tail = FALSE) #0.3125
+# Another Method
+choose(4,3) *0.5^4 + choose(4,4) * 0.5^4
+```
+
+Infection rates at a hospital above 1 infection per 100 person days at risk are believed to be too high and are used as a benchmark. A hospital that had previously been above the benchmark recently had 10 infections over the last 1,787 person days at risk. About what is the one sided P-value for the relevant test of whether the hospital is *below* the standard?
+
+```{r}
+ppois(10, lambda= 0.01*1787) # ppois is used for bigger samples than binormial
+pbinom(9, size = 1787, prob = 0.01, lower.tail = TRUE) * 2 # alternative approach
+```
+
+Brain volumes for 9 men yielded a 90% confidence interval of 1,077 cc to 1,123 cc. Would you reject in a two sided 5% hypothesis test of H0:μ=1,078?
+
+Answer: No you wouldnt reject. The 95% interal is wider than the 90% interval
+ 
+
+Researchers would like to conduct a study of 100 healthy adults to detect a four year mean brain volume loss of .01 mm3. Assume that the standard deviation of four year volume loss in this population is .04 mm3. About what would be the power of the study for a 5% one sided test versus a null hypothesis of no volume loss?
+
+```{r}
+# use special function power.t.test
+power.t.test(n = 100, delta = .01, sd = .04, type = "one.sample", alt = "one.sided")$power
+```
+
+Researchers would like to conduct a study of n healthy adults to detect a four year mean brain volume loss of .01 mm3. Assume that the standard deviation of four year volume loss in this population is .04 mm3. About what would be the value of n needded for 90% power of type one error rate of 5% one sided test versus a null hypothesis of no volume loss?
+```{r}
+a<- 140 [a guess on n]
+power.t.test(n = a, delta = .01, sd = .04, type = "one.sample", alt = "one.sided")$power
+```
+
+As you increase the type one error rate, α, what happens to power?
+Answer: You will get larger power, as less evidenc eto reject
+
+The Daily Planet ran a recent story about Kryptonite poisoning in the water supply after a recent event in Metropolis. Their usual field reporter, Clark Kent, called in sick and so Lois Lane reported the story. Researchers sampled 288 individuals and found mean blood Kryptonite levels of 44, both measured in Lex Luthors per milliliter (LL/ml). They compared this to 288 sampled individuals from Gotham city who had an average level of 42.04. About what is the Pvalue for a two sided Z test of the relevant hypothesis? Assume that the standard deviation is 12 for both groups
+
+```{r}
+xM<- 44
+sM <- sG <- 12
+xG<- 42.04
+nM<- nG<- 288
+ts= (xM-xG)/sqrt(sM^2/nM + sG^2/nG)
+2 * pnorm(-abs(ts))
+```
+
+
+
+Optimization: R miniimizes objective functions so need to use negative log-likelihood
+
+Random Sampling
+```{r, message=FALSE}
+sample(1:10, 4, replace=TRUE) # take 4 numbers from 1:10 with replacement equal true 
+df[sample(nrow(df), 3), ] # sample from a dataset
+flips<- sample(c(0,1),100,replace=TRUE,prob = c(0.3, 0.7)) # coin flip example
+rbinom(1, size = 100, prob = 0.7)
+flips2<-rbinom(100, size = 1, prob = 0.7)
+rnorm(10, mean = 100, sd = 25)
+```
+
+Sequence:
+```{r}
+seq(1,10, by=3) # 1-10 increase by 2 ; counts by three starting from 1
+seq(1,10, length=6) # it now takes this range and splits it perfectly evenly
+```
+
+
+
+Creating Categorical varaibles (library Hmisc package:
+```{r}
+cut2(Cars$wt, g=4) #splits the data into equal parts in attempt to maintain same number of variables in each group
+cut2(Cars$wt, c(2,3,4,5)) # these are the cutpoints in which to categorize. Automatically finds the lower and upper bounds
+cut2(Cars$wt, m=2) # guarantee to that it will be divided where two observations must be be obtained
+```
+
+Example: Gender Balance:
+
+gender <- mydata$sex
+gender <- gender[!is.na(gender)]
+unique(gender)
+males <- length(gender[gender == "male"])/length(gender) * 100
+
+
+
+
+D) Optimzation => Notes from Chris Paciorek
+
+It's a good idea to use `seq_along()` and `seq_len()` and not syntax like `1:length(earnings)` in `sample()` because the outcome of `length()` might in some cases be unexpected (e.g., if you're taking subsets of a dataset). Similar reasoning holds when setting up for loops: e.g., 
+
+A workhorse is `optim()`, which implements a number of optimization algorithms. 
+
+```{r fig.width=11}
+require(fields)  
+banana <- function(x) {   ## Rosenbrock Banana function
+         x1 <- x[1]
+         x2 <- x[2]
+         100 * (x2 - x1 * x1)^2 + (1 - x1)^2
+     }
+
+x1s <- x2s <- seq(-5, 5, length = 100)
+x <- expand.grid(x1s, x2s)
+fx <- apply(x, 1, banana)
+
+par(mfrow = c(1, 2), mai = c(.45, .4, .1, .4))
+image.plot(x1s, x2s, matrix(fx, 100), xlab = '', ylab = '')
+image.plot(x1s, x2s, matrix(log(fx), 100), xlab = '', ylab = '')
+
+optim(c(-2,0), banana)
+```
+
+## $par
+## [1] 1.003 1.006
+## $value
+## [1] 2.08e-05
+## $counts
+## function gradient 
+##      181       NA 
+## $convergence
+## [1] 0
+## $message
+## NULL
+
+We can see the progression of evaluations of the objective function:
+```{r eval=FALSE}
+banana <- function(x) {   ## Rosenbrock Banana function
+         points(x[1],x[2])
+         Sys.sleep(.03)
+         x1 <- x[1]
+         x2 <- x[2]
+         100 * (x2 - x1 * x1)^2 + (1 - x1)^2
+     }
+par(mfrow = c(1, 1), mai = c(.45, .4, .1, .4))
+image.plot(x1s, x2s, matrix(log(fx), 100), xlab = '', ylab = '')
+optim(c(-2,0), banana)
+```
+
+# Smoothing
+
+Linear regression and GLMs are of course useful, but often the relationship is not linear, even on some transformed scale.
+Additive models and generalized additive models (GAMs) are the more flexible variants on linear models and GLMs
+There are a variety of tools in R for modeling nonlinear and smooth relationships, mirroring the variety of methods in the literature. One workhorse is `gam()` in the *mgcv* package.
+
+Example:
+Any hypotheses about the relationship of earnings with height and education?
+
+```{r gamExample, cache=TRUE, fig.width=10}
+library(mgcv)
+mod_male <- gam(earn ~ s(height, k = 10) + s(ed, k = 10), 
+         data = earnings[earnings$sex == 1,])
+mod_female <- gam(earn ~ s(height, k = 10) + s(ed, k = 10), 
+           data = earnings[earnings$sex == 2,])
+summary(mod_male)
+summary(mod_female)
+par(mfrow = c(1,2))
+plot(mod_male)
+plot(mod_female)
+```
+
+
+Distributions!
+    
+* d - probability density/mass function, e.g. `dnorm()`
+* r - generate a random value, e.g., `rnorm()`
+* p - cumulative distribution function, e.g., `pnorm()`
+* q - quantile function (inverse CDF), e.g., `qnorm()`
+
+Some of the distributions include the following (in the form of their random number generator function): `rnorm()`, `runif()`, `rbinom()`, `rpois()`, `rbeta()`, `rgamma()`, `rt()`.
+
+# Distributions in action
+
+```{r}
+pnorm(1.96)
+qnorm(.975)
+dbinom(0:10, size = 10, prob = 0.3)
+dnorm(5)
+dt(5, df = 1)
+
+x <- seq(-5, 5, length = 100)
+plot(x, dnorm(x), type = 'l')
+lines(x, dt(x, df = 1), col = 'red')
+```
+
+```{r}
+rmultinom(1, 100, prob = c(.1, .1, .2, .3, .25, .05)) 
+
+x <- seq(0, 10, length = 100)
+plot(x, dchisq(x, df = 1), type = 'l')
+lines(x, dchisq(x, df = 2), col = 'red')
+```
+
+# Other types of simulation and sampling
+
+We can draw a sample with or without replacement. Here's an example of some code that would be part of coding up a bootstrap.
+
+```{r}
+sample(row.names(state.x77), 7, replace = FALSE)
+mean(earnings$earn, na.rm = TRUE)
+# here's a bootstrap sample:
+smp <- sample(seq_len(nrow(earnings)), replace = TRUE) 
+mean(earnings$earn[smp], na.rm = TRUE)
+```
+
+
+
+
+
+Functions Examples: 
+
+Details: I was given hospital data. The outcome variables that we are interested in is "heart attack", "heart failure", and "pneumonia". There 54 US states which include some territories. We are interested in the hospital performance via 30-day mortality rate of respective outcome 
+
+Function 1: This function takes an outcome and spits out the best ranked hospital of respective state. Also it can detect if a non-state or non-outcome is used by displaying an error. Finally the strings on columns were like "heart.failure". In addition the code handled ties in which, if mortality is the same then alphabethical ranking will be used
+
+Potential Strategies: I can do an if statement for each outcome or do an universal code that can capture all outcomes with miminim structural control (which was my strategy)
+```{r}
+best<- function(State,outcome="heart failure") { #placed a default value on outcome
+    Outcome<- read.csv("outcome-of-care-measures.csv", colClasses= "character") #read data and put default col as characters
+    names(Outcome)<-tolower(names(Outcome)) #lower case all strings for column names
+    names(Outcome)<-gsub("heart.","heart ",names(Outcome)) # a global technique of removing didn't work for some odd reason
+    names(Outcome)<-gsub(".pneumonia"," pneumonia",names(Outcome)) # instead I did a local strategy to change some string so from command line the string could be called
+    Outcome<-filter(Outcome,state==State) #we use state input to filter data
+    if (nrow(Outcome)==0) {
+        stop("invalid state")
+    } # if there was faulty state, the dataset will have zero entries; so this is good point to stop code
+    Outcome<-select(Outcome, hospital.name, starts_with("hospital")) # the technique I used to get right column at right spot
+    Outcome<-select(Outcome, hospital.name, ends_with(outcome)) # finally our last input, if correct the position will be ready for execution
+    if (ncol(Outcome)==1) {
+        stop("invalid outcome")
+    } # if there was incorrect name, select removes all rows except the hospital.name, so this is a good test to post error   
+    Outcome[,2] <- as.numeric(Outcome[,2]) # I finally convert variable to numeric
+    Outcome<- filter(Outcome,!is.na(Outcome[,2])) #filter out missing values!
+    Outcome<-arrange(Outcome, Outcome[,2],hospital.name) #sort to best hospital, then arrange alphabetically to handle ties 
+    Outcome[1,1] #first entry hospital ranked highest 
+} 
+```
+
+Function 2: This function takes an outcome and spits the respective ranked hospital of respective state. Similar to function 1 but with a key feature of choosing any ranked hospital 
+```{r}
+rankhospital<- function(State,outcome="heart failure",rank=1) {
+    Outcome<- read.csv("outcome-of-care-measures.csv", colClasses= "character")
+    names(Outcome)<-tolower(names(Outcome))
+    names(Outcome)<-gsub("heart.","heart ",names(Outcome))
+    names(Outcome)<-gsub(".pneumonia"," pneumonia",names(Outcome))
+    Outcome<-filter(Outcome,state==State)
+    if (nrow(Outcome)==0) {
+        stop("invalid state")
+    }
+    Outcome<-select(Outcome, hospital.name, starts_with("hospital"))
+    Outcome<-select(Outcome, hospital.name, ends_with(outcome))
+    if (ncol(Outcome)==1) {
+        stop("invalid outcome")
+    }
+    Outcome[,2] <- as.numeric(Outcome[,2])
+    Outcome<- filter(Outcome,!is.na(Outcome[,2]))
+    Outcome<-arrange(Outcome, Outcome[,2],hospital.name) # Everything the same above
+    Outcome$Rank <-seq(along=Outcome$hospital.name) # I create Rank column which follow a sequence of total rows
+    if (rank>nrow(Outcome)) {
+        return (NA)  #it is possible the rank user input is greater than number of rows, we need to return NA 
+    } else {
+        Outcome[rank,1]
+    }  # if the rank number complies, it will simply be the row index for the outcome
+} 
+# if undo lines 26 to 30 then code works
+```
+
+Function 3: This function takes an outcome and take the appropiate ranking of a hospital for each state and then combines them into one table. If there is no respective ranking for respective state then it is NA.
+
+    Code: In continuation of function 2 
+```{r}
+rankall <- function(outcome,rank) {
+    Ranking<-data.frame() # create an empty dataframe
+    Outcome<- read.csv("outcome-of-care-measures.csv", colClasses= "character")
+    for (i in 1:54) { #IMPORTANT that the index is numerical 
+        s<-unique(Outcome$State)[i] # s extracts the unique state
+        Ranking<-rbind(Ranking,c(hospital=rankhospital(s,outcome,rank),state=s)) 
+    } #we stack up observations of hospital and state
+    Ranking
+}
+```
+
+    Brand New Code: Notice I put all the standard before the non-loop to better optimize the processing of function
+```{r}
+rankall <- function(outcome, rank) {
+    Ranking<-as.character(data.frame())
+    Outcome<- read.csv("outcome-of-care-measures.csv", colClasses= "character")
+    names(Outcome)<-tolower(names(Outcome))
+    names(Outcome)<-gsub("heart.","heart ",names(Outcome))
+    names(Outcome)<-gsub(".pneumonia"," pneumonia",names(Outcome))
+    Outcome<-select(Outcome, hospital.name, state,starts_with("hospital"))
+    Outcome<-select(Outcome, hospital.name, state,ends_with(outcome))
+    if (ncol(Outcome)==1) {
+        stop("invalid outcome")
+    }
+    Outcome[,3] <- as.numeric(Outcome[,3])
+    Outcome<- filter(Outcome,!is.na(Outcome[,3]))
+    # end commonality   
+    for (i in 1:54) { #IMPORTANT that the index is numerical 
+        POutcome<-filter(Outcome,state==unique(Outcome$state)[i]) #create a new variable POutcome so outcome variable don't get corrupted via loop; also filter by state
+        POutcome<- arrange(POutcome,POutcome[,3],hospital.name) 
+        POutcome$Rank <-seq(along=POutcome$hospital.name)
+        if (rank>nrow(POutcome)) {
+            Ranking<-rbind(Ranking,POutcome[1,]) #the default was it take first rank instead missing
+        } else if {
+            Ranking<-rbind(Ranking,POutcome[rank,])
+        } #otherwise you subset for respective rank
+    }
+    Ranking$hospital.name[Ranking$Rank==1] <- NA # finally after loop is I correct with the unusual ranked 1 with NA 
+    Ranking<-select(Ranking,hospital.name,state)
+    Ranking<-arrange(Ranking,state)
+    names(Ranking)<-gsub("hospital.name","hospital", names(Ranking))
+    Ranking # last aspects is simply arrangement
+}
+```
+
+
+Different Functions
+```{r}
+complete <- function(directory, id) {
+  files <- list.files(directory, full.names = TRUE)
+  mydata<-data.frame()
+  nobs <- rep(0, times = length(id)) # create zero vector length of id
+  j <- 1 # create counter
+  for( i in id) {
+    mydata<- read.csv(files[i])
+    completecases<- sum(complete.cases(mydata))
+    nobs[j] <- completecases # update nobs
+    j <- j+1 # increase counter
+  } 
+  results<-data.frame(cbind(id ,nobs))
+  results
+}
+```

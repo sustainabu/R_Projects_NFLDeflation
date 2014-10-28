@@ -1,0 +1,540 @@
+---
+title: "SQL Manual"
+author: "Abu Nayeem"
+date: "September 25, 2014"
+output: html_document
+---
+
+#### Introduction
+
+SQL is used to take information from relational databases. It is significantly much more efficient than R in certain fucnitons  becuase it alegabraically optimize operations. Normally the strategy involves. The operations are extremely simple in comparison to R and other languages. Unfortunately there is several forms of SQL depending on the server. **Note:** SQL commands are capitalized to be read easier. Also semicolon designate the end of a line of code 
+
+##### Basic Commands
+
+Basic Reminders
+
+* WHERE is "if" clause
+* BETWEEN is for range (works string); IN for precise subset; EX: Price BETWEEN 10 and 20
+* AND/ OR and NOT for negation; Ex: City='blue' and Price NOT IN (10,20)
+* ORDER BY is the arrange fucntion
+* SELECT DISTINCT is used to return only different values; this varies from UNIQUE
+* Date Types vary amongst Database so check out sources
+
+A) Selection 
+
+    Columns:
+```{r}
+# multiple columns
+SELECT column_name,column_name 
+FROM table_name;
+# all columns
+SELECT * FROM table_name;
+# unique values of a column, i.e. no duplicates
+SELECT DISTINCT city FROM Customers;
+```
+
+    Rows [Where is used for clause]:
+```{r}
+# selection of rows on basis of multiple arguements, for numbers dont use quote
+SELECT * FROM Customers
+WHERE Country='Germany'
+AND (City='Berlin' OR City='München');
+# arguement of specific price not in those groups; NOTICE that parathesis was used
+SELECT * FROM Products
+WHERE (Price BETWEEN 10 AND 20) # select between those prices
+AND NOT CategoryID IN (1,2,3); # choose category ID where those are missing
+# another example with characters
+SELECT * FROM Products
+WHERE ProductName BETWEEN 'C' AND 'M'; # select between products between the characters c and m
+```    
+Notice that the BETWEEN operator can produce different result in different databases!
+
+
+    Select Specific number of entries
+```{r}
+# MYSQL
+SELECT *
+FROM Persons
+LIMIT 5; # limit number of entries to 5
+# Oracle
+SELECT *
+FROM Persons
+WHERE ROWNUM <=5; # limit the entries to 5
+# Select some ordered amount
+SELECT TOP 2 * FROM Customers; # select first two entries
+SELECT TOP 50 PERCENT * FROM Customers; # first 50%
+```
+
+LIKE operator acts like a grep function in R: example below
+```{r}
+SELECT * FROM Customers
+WHERE City LIKE 's%'; # pick cities that start with letter s
+```
+* 's%'; # pick cities that start with letter s
+* '%s'; # pick cities the end with letter s
+* '%land%'; # pick country with pattern land
+* NOT LIKE '%land%'; # pick country with no pattern land
+* 'ber%'; # (%) we chose patterns start with ber and the rest don't matter
+* '_erlin';# (-) select City starting with any character, followed by "erlin"
+* 'L_n_on'; # you get the idea
+* '[bsp]%'; # [bsp] select the city starting with b, p, or s
+* '[a-c]%'; # [a-c] select starting a,b,c
+* '[!bsp]%'; # [!bsp] Not; alternative- NOT LIKE '[bsp]%'
+```
+    
+    Ordering: Could be important in improving efficiency if properly ordered
+```{r}
+# the default is ascending, in this case it was double ordering 
+SELECT * FROM Customers
+ORDER BY Country DESC, city;
+```
+
+B) Inserting New Values
+
+Note: The CustomerID column is automatically updated with a unique number for each record in the table.
+```{r}
+INSERT INTO Customers (CustomerName, ContactName, Address, City, PostalCode, Country) # choose datasets and the columns
+VALUES ('Cardinal','Tom B. Erichsen','Skagen 21','Stavanger','4006','Norway'); #new row in the "Customers" table
+
+# Missing values will be blank
+INSERT INTO Customers (CustomerName, City, Country)
+VALUES ('Cardinal', 'Stavanger', 'Norway')
+```
+
+C) Updating Existing Values; if there is no WHERE clause then everything 
+```{r}
+UPDATE Customers # choose databases
+SET ContactName='Alfred Schmidt', City='Hamburg' #choose changes you want 
+WHERE CustomerName='Alfreds Futterkiste'; # find the clause to replace this with
+```
+
+D) Delete specific rows
+```{r}
+DELETE FROM Customers
+WHERE CustomerName='Alfreds Futterkiste' AND ContactName='Maria Anders';
+# Keep table inttact but contents gone
+DELETE * FROM Customers;
+```
+
+E) SQL Aliases- this is used for renaming columns or functions but note it can combine mutiple rows. Also for names with space you need to put brackets
+```{r}
+SELECT CustomerName AS Customer, ContactName AS [Contact Person]
+FROM Customers; # notice the brackets was used because space was used
+# Combine 4 columns into one: SQL format [OTHER formats vary where MYSQL use CONCAT function]
+SELECT CustomerName, Address+', '+City+', '+PostalCode+', '+Country AS Address
+FROM Customers # notice the syntax.
+SELECT CustomerName, CONCAT(Address,', ',City,', ',PostalCode,', ',Country) AS Address #MySQL
+# Complicated example
+SELECT o.OrderID, o.OrderDate, c.CustomerName
+FROM Customers AS c, Orders AS o
+WHERE c.CustomerName="Around the Horn" AND c.CustomerID=o.CustomerID
+# selects all the orders from the customer with CustomerID=4 (Around the Horn). We use the "Customers" and "Orders" tables, and give them the table aliases of "c" and "o" respectively
+```
+
+F) SQL Joins
+
+* SQL INNER JOIN return all rows from multiple tables where the join condition is met
+* LEFT JOIN keyword returns all rows from the left table (table1), with the matching rows in the right table (table2). ; RIGHT Join is reversal
+* FULL OUTER JOIN keyword combines the result of both LEFT and RIGHT joins
+
+Example
+```{r}
+SELECT Orders.OrderID, Customers.CustomerName, Orders.OrderDate # select categories
+FROM Orders # this is the left table
+INNER JOIN Customers # this is right table
+ON Orders.CustomerID=Customers.CustomerID # the common ID to connect
+ORDER BY Customers.CustomerName; # how we want to view the data
+```
+
+G) UNION - It is special SELECT statement that takes information from mutiple tables. However, the column need to have same name, type, and the table need to be similar (?)
+
+* UNION selects only the distinct values and duplicate them
+* UNION ALL gets the redundant values
+
+Example:
+```{r}
+SELECT City, Country FROM Customers
+WHERE Country='Germany'
+UNION ALL
+SELECT City, Country FROM Suppliers
+WHERE Country='Germany'
+ORDER BY City; # select all (duplicate values also) German cities
+```
+
+F) SELECT INTO statement copies data from one table and inserts it into a new table.
+
+```{r}
+SELECT CustomerName, ContactName
+INTO CustomersBackup2013 # save into new file
+FROM Customers 
+WHERE Country='Germany' # only a few columns into the new table with Country is Germany
+
+SELECT *
+INTO CustomersBackup2013 IN 'Backup.mdb'
+FROM Customers; # copy the table into another database
+
+SELECT Customers.CustomerName, Orders.OrderID
+INTO CustomersOrderBackup2013
+FROM Customers
+LEFT JOIN Orders
+ON Customers.CustomerID=Orders.CustomerID; # Copy data from more than one table into the new table
+
+```
+
+G) INSERT INTO SELECT statement copies data from one table and inserts it into an existing table.
+
+```{r}
+INSERT INTO Customers (CustomerName, Country)
+SELECT SupplierName, Country FROM Suppliers
+WHERE Country='Germany'; # copy German suppliers into customers which has CustomerName and Country
+```
+
+
+#### Creating Data
+
+A) Create Database
+
+```{r}
+CREATE DATABASE my_db
+```
+
+B) Create Table
+
+Note that you can have many UNIQUE constraints per table, but only one PRIMARY KEY constraint per table.
+
+```{r}
+# general form- state column name and the data type; size parameter specifies the maximum length of the column of the table
+CREATE TABLE table_name
+(
+column_name1 data_type(size),
+column_name2 data_type(size),
+column_name3 data_type(size),
+)
+# example
+CREATE TABLE PersonsNotNull # name of Table
+(
+P_Id int NOT NULL, # column is an integer and it does not accept null/ missing values [NOT NULL]
+#### This is used instead of above for MySQL: P_Id int NOT NULL UNIQUE,
+LastName varchar(255) NOT NULL, # character also does not accept missing values
+FirstName varchar(255),
+Address varchar(255),
+City varchar(255)
+#### UNIQUE (P_Id) is added under Oracle
+)
+```
+
+
+Other Table Operations:
+```{r}
+TRUNCATE TABLE table_name; # delete data in table but keep table structure
+# add column with type
+ALTER TABLE Persons
+ADD DateOfBirth date 
+# change columnd data type
+ALTER TABLE Persons
+ALTER COLUMN DateOfBirth year 
+# Auto-increment for each new entry add 1 value;  the default starts at 1
+ID int NOT NULL AUTO_INCREMENT # put on column designation
+# Auto Increment by 5 starting from 10
+ CREATE TABLE Persons(
+ID int IDENTITY(10,5) PRIMARY KEY)
+```
+
+VIEWS is a virtual table based on the result-set of an SQL statement. It is always up to date upon query
+```{r}
+CREATE VIEW [Products Above Average Price] AS
+SELECT ProductName,UnitPrice
+FROM Products
+WHERE UnitPrice>(SELECT AVG(UnitPrice) FROM Products) ; # selects every product in the "Products" table with a unit price higher than the average unit price
+# Nested VIEWS
+CREATE VIEW [Category Sales For 1997] AS
+SELECT DISTINCT CategoryName,Sum(ProductSales) AS CategorySales
+FROM [Product Sales for 1997]
+GROUP BY CategoryName; # calculates the total sale for each category in 1997. Note that this view selects its data from another view called "Product Sales for 1997"
+```
+
+
+C) Working with constraints, primary keys [only one primary key allowed], foreign keys
+
+Constraints:
+```{r}
+# Setting Constraint
+CREATE TABLE Blah ()
+column, values
+CONSTRAINT uc_PersonID UNIQUE (P_Id,LastName) #name the constraint and its on mutilple cols
+)
+# Adding a constraint
+ALTER TABLE Persons
+ADD CONSTRAINT uc_PersonID UNIQUE (P_Id,LastName)
+# Removing a constraint 
+ALTER TABLE Persons
+DROP CONSTRAINT/ INDEX[MySQL only] uc_PersonID 
+```
+
+Primary Keys: Only one primary key per table and cannot 
+```{r}
+# Setting Primary Key
+CREATE TABLE Persons
+(
+P_Id int NOT NULL PRIMARY KEY, # the PRIMARY Key is used Oracle, normal SQL, MS Access 
+City varchar(255),
+PRIMARY KEY (P_Id) # this line is only added for MySQL and PRIMARY KEY is missing on previous
+)
+# for mulitple keys (true for all), Add the following line
+CONSTRAINT pk_PersonID PRIMARY KEY (P_Id,LastName)
+# Add key
+ALTER TABLE Persons
+ADD PRIMARY KEY (P_Id);
+# Remove key
+ALTER TABLE Persons
+DROP CONSTRAINT/ INDEX[MySQL only] uc_PersonID 
+```
+
+Foreign Keys: For multiple tables they may share a common ID, and maybe you want to extract an idea from another table which is determined as foreign
+
+Insert PNG table
+
+```{r}
+# MySQL
+CREATE TABLE Orders(
+O_Id int NOT NULL,
+OrderNo int NOT NULL,
+P_Id int, # which P_Id dp we choose
+PRIMARY KEY (O_Id),
+FOREIGN KEY (P_Id) REFERENCES Persons(P_Id) ) # the P_ID of interest is from Persons 
+# Everything else
+CREATE TABLE Orders (
+O_Id int NOT NULL PRIMARY KEY,
+OrderNo int NOT NULL,
+P_Id int FOREIGN KEY REFERENCES Persons(P_Id) )
+# Use the normal constraint trick when adding and removing foreign variable designations
+```
+
+CHECK constraint is used to limit the value range that can be placed in a column. The limits can be used by other components in rows
+
+```{r}
+# ADD Check Constraint
+CREATE TABLE Persons(
+P_Id int NOT NULL CHECK (P_Id>0), # Everything except MySQL
+City varchar(255))
+CHECK (P_Id>0) # MySQL only
+# Multiple COnstraint
+CONSTRAINT chk_Person CHECK (P_Id>0 AND City='Sandnes')
+# Adding is same thing
+```
+
+DEFAULT constraint is used to insert a default value into a column
+```{r}
+CREATE TABLE...
+OrderDate date DEFAULT GETDATE() # set Default date from system date
+```
+
+CREATE INDEX statement is used to create indexes in tables. It is used to search data faster. Updates with indices take longer, so put indices on what is commonly searched. Check database for syntax!
+
+```{r}
+CREATE (UNIQUE) INDEX PIndex
+ON Persons (LastName, FirstName); # index on table with duplicate values and put unique option for non-duplication
+```
+
+D) SQL Group by a category
+
+```{r}
+# Single Grouping
+SELECT Shippers.ShipperName,COUNT(Orders.OrderID) AS NumberOfOrders FROM Orders # [pick columns and titles, with left table as Orders]
+LEFT JOIN Shippers # left join keeps all data of Orders
+ON Orders.ShipperID=Shippers.ShipperID # match I.D
+GROUP BY ShipperName; # find the number of orders sent by each shipper- counts as orders are grouped by shippers
+# Multiple layer grouping [complex code below]
+SELECT Shippers.ShipperName, Employees.LastName,
+COUNT(Orders.OrderID) AS NumberOfOrders
+FROM ((Orders
+INNER JOIN Shippers
+ON Orders.ShipperID=Shippers.ShipperID) # FIRST we create a table that has unique values
+INNER JOIN Employees
+ON Orders.EmployeeID=Employees.EmployeeID) # SECOND we combine it with employee data
+GROUP BY ShipperName,LastName; # double layer grouping
+
+```
+
+E) SQL injection is a technique where malicious users can inject SQL commands into an SQL statement, via web page input. It compromise the security of a web application.
+
+Example #1:
+
+If there is nothing to prevent a user from entering "wrong" input, the user can enter some "smart" input like this:
+
+UserId: (105 or 1=1
+```{r}
+# Server Result
+SELECT * FROM Users WHERE UserId = 105 or 1=1
+# The SQL above is valid. It will return all rows from the table Users, since WHERE 1=1 is always true.
+SELECT UserId, Name, Password FROM Users WHERE UserId = 105 or 1=1
+# A smart hacker might get access to all the user names and passwords in a database by simply inserting 105 or 1=1 into the input box.
+```
+
+
+Example 2: A smart hacker might get access to user names and passwords in a database by simply inserting " or ""=" into the user name or password text box.
+
+```{r}
+#server code
+uName = getRequestString("UserName");
+uPass = getRequestString("UserPass");9
+sql = "SELECT * FROM Users WHERE Name ='" + uName + "' AND Pass ='" + uPass + "'"
+# INJECTION
+SELECT * FROM Users WHERE Name ="" or ""="" AND Pass ="" or ""=""
+# The result SQL is valid. It will return all rows from the table Users, since WHERE ""="" is always true.
+```
+
+Example 3: The user inserts a code to delete information from server
+
+```{r}
+# server code
+txtUserId = getRequestString("UserId");
+txtSQL = "SELECT * FROM Users WHERE UserId = " + txtUserId;
+# injection code
+User id:(
+105; DROP TABLE Suppliers
+# It would create following code
+SELECT * FROM Users WHERE UserId = 105; DROP TABLE Suppliers
+```
+
+**For Protection** add SQL parameters on SQL Query operation
+
+Strategy:
+The SQL engine checks each parameter to ensure that it is correct for its column and are treated literally, and not as part of the SQL to be executed.
+
+
+Asp.net razor Example
+```{r}
+txtUserId = getRequestString("UserId");
+txtSQL = "SELECT * FROM Users WHERE UserId = @0";
+db.Execute(txtSQL,txtUserId);
+# Note that parameters are represented in the SQL statement by a @ marker.
+
+# another example
+txtNam = getRequestString("CustomerName");
+txtAdd = getRequestString("Address");
+txtCit = getRequestString("City");
+txtSQL = "INSERT INTO Customers (CustomerName,Address,City) Values(@0,@1,@2)";
+db.Execute(txtSQL,txtNam,txtAdd,txtCit);
+```
+
+ASP.NET SELECT
+```{r}
+txtUserId = getRequestString("UserId");
+sql = "SELECT * FROM Customers WHERE CustomerId = @0";
+command = new SqlCommand(sql);
+command.Parameters.AddWithValue("@0",txtUserID);
+command.ExecuteReader();
+```
+ASP.NET INSERT INTO
+```{r}
+txtNam = getRequestString("CustomerName");
+txtAdd = getRequestString("Address");
+txtCit = getRequestString("City");
+txtSQL = "INSERT INTO Customers (CustomerName,Address,City) Values(@0,@1,@2)";
+command = new SqlCommand(txtSQL);
+command.Parameters.AddWithValue("@0",txtNam);
+command.Parameters.AddWithValue("@1",txtAdd);
+command.Parameters.AddWithValue("@2",txtCit);
+command.ExecuteNonQuery();
+```
+PHP INSERT INTO
+```{r}
+$stmt = $dbh->prepare("INSERT INTO Customers (CustomerName,Address,City) 
+VALUES (:nam, :add, :cit)");
+$stmt->bindParam(':nam', $txtNam);
+$stmt->bindParam(':val', $txtAdd);
+$stmt->bindParam(':cit', $txtCit);
+$stmt->execute();
+```
+
+#### Other Operations
+
+A) Dates (different type and format depending on server)
+
+FUnctions:
+MySQL
+* NOW() - Returns the current date and time
+* CURDATE()- Returns the current date
+* CURTIME()- Returns the current time
+* DATE() - Extracts the date part of a date or date/time expression
+* EXTRACT() - Returns a single part of a date/time
+* DATE_ADD() - Adds a specified time interval to a date
+* DATE_SUB()- Subtracts a specified time interval from a date
+* DATEDIFF() - Returns the number of days between two dates
+* DATE_FORMAT() -Displays date/time data in different formats
+SQL
+* GETDATE()- Returns the current date and time
+* DATEPART()- Returns a single part of a date/time
+* DATEADD()- Adds or subtracts a specified time interval from a date
+* DATEDIFF()- Returns the time between two dates
+* CONVERT()- Displays date/time data in different formats
+
+B) Null Values [IS NULL]
+
+Selection:
+```{r}
+SELECT LastName,FirstName,Address FROM Persons
+WHERE Address IS NOT NULL # find entries where address is not NULL
+```
+
+C) Data Types [there are standard R type integers]; Note- there are many number types respect to size
+
+D) Functions:
+
+Operations
+* AVG() - Returns the average value
+* COUNT() - Returns the number of rows that fit a criteria
+* FIRST() - Returns the first value
+* LAST() - Returns the last value
+* MAX() - Returns the largest value
+* MIN() - Returns the smallest value
+* SUM() - Returns the sum
+
+Scalar Operations
+* UCASE() - Converts a field to upper case
+* LCASE() - Converts a field to lower case
+* MID() - Extract characters from a text field
+* LEN() - Returns the length of a text field
+* ROUND(x,0) - Rounds a numeric field to the number of decimals specified
+* NOW() - Returns the current system date and time [leave blank]
+* FORMAT() - Formats how a field is to be displayed; Ex: FORMAT(Now(),'YYYY-MM-DD')
+
+Some Examples
+```{r}
+# Average
+SELECT ProductName, Price FROM Products
+WHERE Price>(SELECT AVG(Price) FROM Products); # shows product name and price where price is above the average price- Notice the select
+# Count
+SELECT COUNT(DISTINCT column_name) FROM table_name; # count unique entries
+```
+
+HAVING function is similar to where but for functions
+```{r}
+SELECT Employees.LastName, COUNT(Orders.OrderID) AS NumberOfOrders FROM Orders
+INNER JOIN Employees
+ON Orders.EmployeeID=Employees.EmployeeID
+WHERE LastName='Davolio' OR LastName='Fuller' #where clause is added to the SQL statement
+GROUP BY LastName
+HAVING COUNT(Orders.OrderID) > 25 # notice it uses on operation as oppose to a value of a cell
+
+```
+
+Useful Question
+With SQL, how can you insert "Olsen" as the "LastName" in the "Persons" table?
+```{r}
+INSERT INTO Persons (LastName) VALUES ('Olsen')
+```
+
+
+
+
+
+
+
+```{r, results='markup', message=FALSE}
+# Hello
+library(caret)
+mtcars
+summary(mtcars)
+```
