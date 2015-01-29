@@ -6,6 +6,7 @@ output: html_document
 ---
 
 ##### Introduction
+
 This Manual is meant to consolidate my knowledge in data analytics. In addition, I am happy to share data techniques and strategies to anyone. Many manuals focus on small datasets, the strategies here will try to focus on Big Data. There are different types of "big"" datasets; 1) many observations [i.e. rows], which is not too bad; 2) many columns which are more difficult as you need to assess if columns are useful or not or it is worth tinkering with. In addition, simple subsetting operations now become more tedious and time-consuming.  
 
 ##### Unresolved Questions
@@ -19,7 +20,7 @@ Number of cores: 2 [Use command on terminal: system_profiler | grep -i 'Cores']
 
 ##### R markup tools
 
-Link: <http://groupware.les.inf.puc-rio.br/har>
+Link: [Link](http://groupware.les.inf.puc-rio.br/har)
 Bold text: **bold** 
 Bullet point: *
 * bullet
@@ -30,9 +31,9 @@ chunk commands:
 ```{r name} 
 # you can name name it 
 ```
-echo= FALSE -run but hides code great for graphs
-messages= FALSE -run but does not show message of loading
-warnings= FALSE- run but does not show warnings
+echo=FALSE -run but hides code great for graphs
+messages=FALSE -run but does not show message of loading
+warnings=FALSE - run but does not show warnings
 
 autodep=FALSE
 
@@ -67,6 +68,7 @@ date() #set date
 ```
 
 C1) Install packages that may me missing on computer
+```{r}
 if (!library("data.table")) {
   install.packages("data.table")
 }
@@ -74,6 +76,7 @@ if (!library("data.table")) {
 if (!library(data.table)) {
   install.packages("data.table")
 }
+```
 
 C2) Load Appropiate packages- Load the most important packages that you use frequently 
 ```{r, message=FALSE}
@@ -143,7 +146,7 @@ bunzip2("repdata-data-StormData.csv.bz2",dest="repdata-data-StormData.csv", over
 #Set location (exdir) to working directory
 portion<-file("repdata-data-StormData.csv","r") 
 #make it to readable file for extraction, so we can extract certain elements; useful for big files
-StormData<-read.csv(text = grep("^[1,2]/2/2007",readLines(portion),value=TRUE, header=TRUE, sep=",", comment.char="") 
+StormData<-read.csv(text = grep("^[1,2]/2/2007",readLines(portion),value=TRUE), header=FALSE, sep=",", comment.char="") 
 #we are looking for the text that match and extract those rows. This works for time, another way is take explicit number of rows;
 #other features include skip, nrows, stringsAsFactors, na.strings,and ColClasses, the last item is to store the data with less RAM 
 colnames(Power)<-t(Columns[1]) 
@@ -174,10 +177,10 @@ file<-"household_power_consumption.txt"
 a<-read.table(file,nrows=10) # create a smaller subset of data
 classes<-sapply(a,class) # separate the classes
 b<-read.table(file, colClasses=classes) #now classes are given much more in advance
-read.table(file, colClasses=c("character","character",rep("numeric",times=7))) # if you know the class tables you want the better
+read.table(file, colClasses=c("character","character",rep("numeric",times=7))) # if you know the class of the tables then this is better
 ```
 
-    Loading previous workspace: source(data.R)
+    Loading previous workspace: `source(data.R)`
 
 ### Data Cleaning/ Presentation
 
@@ -201,6 +204,7 @@ C) Handling Time
 
     Lubridate [Convert character to date variable]
 ```{r, message=FALSE}
+library(Lubridate)
 ymd("1989-05-17") #it is very smart and maneurable in handling dates as order don't matter!
 ```
     
@@ -233,7 +237,7 @@ CC[a,] #make sure you compare the variables and see any anomalies
 CC[-a,] #I recommend choosing which of the identical data is worth removing
 ```
 
-    For Numerical Entries [same methods as above] :
+    3) For Numerical Entries [same methods as above] :
     Use the summary feature, to spot any oddities on the numeric vectors which include unreasonable outliers and contradictory values such as negative values [example: price]
 ```{r, message=FALSE}
 summary(CC)
@@ -376,7 +380,7 @@ summary(CC$wt) # check if max or min fit desired criteria [no missing values or 
 all(data$val>0) # check if there is any negative values on the dataset, it gives only one statement
 ```
 
-    For finding out frequency of values of strings, place into a factor first
+    For finding out frequency of values of strings [place into a factor first]
 ```{r, message=FALSE}
 CC$A<- as.factor(CC$A) # change character vector to a factor
 summary(CC$A) #Now we view the frequency of each factor variable
@@ -480,7 +484,6 @@ merge(B,A,by="id") # shows all unique combinations of the id
 merge(B,A,by="id",all=TRUE) # include ALL IDs that did not match
 ```
 
-```
 D) Splitting Existing Columns: when there is excess information in one column
 
 ```{r, message=FALSE}
@@ -546,6 +549,7 @@ G) Handling Missing values: Remember the feature "na.rm=TRUE" exists for many fu
 ```{r, message=FALSE}
 colSums(is.na(data))
 ```
+
 H) Loops and Advanced: Avoid if necessary
 
     Loop Example: MAKE sure it is (i in [SEQUENCE]), a good range is 1:length(unique(CC$Hp))
@@ -620,15 +624,14 @@ lapply(split(CC,Cyl),mean) # does not handle dataframes too well, so use dplyr
 
 J) Useful functions [Not Useful- Cross tabs]
 
-quantile(tree$LFBM)
-
     Sequence:
 ```{r}
 seq(1,10, by=3) # 1-10 increase by 2 ; counts by three starting from 1
 seq(1,10, length=6) # it now takes this range and splits it perfectly evenly
+quantile(tree$LFBM)
 ```
 
-    Literal Commands:
+    Literal Commands [GREP]:
 ```{r}    
 literal # exact matches
 ^i think # specify the beginning of sentence
@@ -651,6 +654,7 @@ Hey ( [Ww]\.)?  # the question mark indicates it is optional
 ```{r}
 unique(CC$Wt)[1] # the output showed the unique value (I presume alphabetically) 
 ```    
+
 ### Presentations and basic plot displays
 
 A) Plotting: the three major packages is base plot, lattice, and ggplot (favorite); Exporting the plots in different formats do matter so be aware and remember to close the screen browser after savinf a photo. JPEG and PNG (poor resize); pdf (good at resizing)
@@ -919,7 +923,7 @@ rbind_list(passed,failed) # combine the datasets by stacking observations
 F) Problem 6: Suppose you had this mess of a dataset where there is many arguements that need to be tidy up. NOTE: the data belows show the count of individuals in that range
 
   score_range read_male read_fem read_total math_male math_fem math_total
-1     700–800     40151    38898      79049     74461    46040     120501
+1     700???800     40151    38898      79049     74461    46040     120501
 2     600-690    121950   126084     248034    162564   133954     296518
 3     500-590    227141   259553     486694    233141   257678     490819
 4     400-490    242554   296793     539347    204670   288696     493366
@@ -941,37 +945,37 @@ sat %>%
 ```
 
  score_range  part  sex  count  total       prop
-1      700–800  read male  40151 776092 0.05173485
+1      700???800  read male  40151 776092 0.05173485
 2      600-690  read male 121950 776092 0.15713343
 3      500-590  read male 227141 776092 0.29267278
 4      400-490  read male 242554 776092 0.31253253
 5      300-390  read male 113568 776092 0.14633317
 6      200-290  read male  30728 776092 0.03959324
-7      700–800  read  fem  38898 883955 0.04400450
+7      700???800  read  fem  38898 883955 0.04400450
 8      600-690  read  fem 126084 883955 0.14263622
 9      500-590  read  fem 259553 883955 0.29362694
 10     400-490  read  fem 296793 883955 0.33575578
 11     300-390  read  fem 133473 883955 0.15099524
 12     200-290  read  fem  29154 883955 0.03298132
-13     700–800  math male  74461 776092 0.09594352
+13     700???800  math male  74461 776092 0.09594352
 14     600-690  math male 162564 776092 0.20946486
 15     500-590  math male 233141 776092 0.30040382
 16     400-490  math male 204670 776092 0.26371873
 17     300-390  math male  82468 776092 0.10626060
 18     200-290  math male  18788 776092 0.02420847
-19     700–800  math  fem  46040 883955 0.05208410
+19     700???800  math  fem  46040 883955 0.05208410
 20     600-690  math  fem 133954 883955 0.15153939
 21     500-590  math  fem 257678 883955 0.29150579
 22     400-490  math  fem 288696 883955 0.32659581
 23     300-390  math  fem 131025 883955 0.14822587
 24     200-290  math  fem  26562 883955 0.03004904
-25     700–800 write male  31574 776092 0.04068332
+25     700???800 write male  31574 776092 0.04068332
 26     600-690 write male 100963 776092 0.13009154
 27     500-590 write male 202326 776092 0.26069847
 28     400-490 write male 262623 776092 0.33839158
 29     300-390 write male 146106 776092 0.18825861
 30     200-290 write male  32500 776092 0.04187648
-31     700–800 write  fem  39101 883955 0.04423415
+31     700???800 write  fem  39101 883955 0.04423415
 32     600-690 write  fem 125368 883955 0.14182622
 33     500-590 write  fem 247239 883955 0.27969636
 34     400-490 write  fem 302933 883955 0.34270183

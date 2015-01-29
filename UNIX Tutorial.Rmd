@@ -1,0 +1,200 @@
+---
+title: "Unix Tutorials"
+author: "Abu Nayeem"
+date: "December 24, 2014"
+output: html_document
+---
+
+##### Introduction of UNIX
+
+![To learn more](http://freeengineer.org/learnUNIXin10minutes.html)
+
+UNIX is an operating system and has a graphical user interface (GUI). UniX is made up of three parts: *the kernal, the shell, and the programs*
+
+**The Kernal**
+This is the main hub of hte operating system: it handles time and memory to prorams and handle the filestor and and communications. It essentially acts like a server
+
+**The Shell**
+The shell acts as an interface between the user and kernal.The shell is a command line interpretator (CLI), and it essentially treats them as programs; the shell store all the previous commands.
+
+**The Programs**
+Everything in UNIX is either a process or file or process. It has a system heirarchy where (/) is the root diagram
+
+##### Simple commands
+
+`ls -a`: it lists all the files in the hidden directory
+`cd ~`: change back to home directory
+
+1) Copying files into current directory 
+`cp filepath namefile`; Note that the directory needs to be writable
+`mv file1 file2`; this moves the file, note you cna remname it
+`rm file`; also rmdir removes a directory
+
+2) Viewing text
+`cat file.txt`; displays entire text
+`less file.txt`; displays text up to a page
+`head file.txt`; displays first ten lines
+`tail file.txt`; displays last ten lines
+
+3) Search contents of the file
+`grep -i science file.txt`; this searches the word science and print the line regardless of capitalization
+`grep -i 'science help' file.txt`; this is a pattern  
+*Options:* `-v` (display do not match); `-n` (denote line number); `-c` print out only the total count of matched lines
+*Multiple options:* `grep -ivc science file.txt`
+
+4) WordCount
+`wc -w science.txt`: count the total number of times science was used
+
+5) Make a list; *press Control D to end the list/file*
+```{r}
+cat > list1
+pear 
+banana
+apple
+# Display the list created
+cat list1 
+```
+
+Appending a list: close as normal
+```{r}
+cat >> list1
+peach 
+orange
+```
+
+Combine two documents:
+`cat list1 list2 > biglist`; combines the two lists together into one
+
+6) Manipulating lists [NOTE: they use a different symbol]
+
+The `<` symbol redirects the input. For example:
+`sort < biglist` ; sorts the elements in the list
+`sort < biglist > sortlist` ; the following diagram sorts out biglist and save it under a different file
+
+7) Find and list the number of users; *We use pipes, which are vertical lines*
+`who | sort` ; list name of users and sort
+`who | wc -1` ; find how many users are logged on
+
+**Exercise**: Using pipes, diaplay all line sof list1 and list2 containing the letter 'p', and sort the result:
+`cat list1 list2 | grep p | sort`
+
+8) **Wildcards** use the asterick mark and designate any match
+
+`ls list*`; this list any files that start with list
+`ls *list`; list all the files that end with list
+`ls ?list`; this matches *exactly one character*;  so yea to blist and not to brlist 
+
+##### File System Security
+
+`drwxrw-r-- 1 ee51ab 2450 Sept29 11:52 file1`: So the user is ee51ab, size is 2450, time created, and file name. The first section is the permission code, where `d` stands for directory
+
+**Access rights of Files Terminology:**
+`r (or -)`- indicates read permission where you can *read it and copy it*
+`w`- indicates write permission, that is *permission to change a file.*
+`x`- this allows the *permission to execute the file*
+
+**Access rights of Directory Terminology:**
+- `r` allows users to list files in the directory
+- `w` users may delete files fromt he directory or move files into it
+- `x` means the right to access the directory, granted you have permission
+
+The groups of three:
+- the *left group* gives the file permissions of the person who owns the file
+- the *middle group* gives person in group the permission of the file
+- the *right group* gives the permission from all others
+
+**Examples:**
+`-rwxrwxrwx` : a file that everyone can read, write, and execute
+`-rw-------` : a file that only the owner can read and write, and no one else
+
+**Changing Access Rights using chmod [Codes]**
+- `u`: user ; `g`: group ; `o`:other ; `a`: all
+- `r`: read ; `w`: write (and delete) ; `x`: execute (and access directory)
+- `+`: add permission ; `-`: remove permission
+
+*Examples:*
+`chmod go-rwx biglist`: this states group/other lose permission read/write/execute
+`chmod a+rw biglist`: this gives all users permission to read and write
+
+**Note:** You can set up background processes, or hidden processes
+
+##### Other UNIX commands
+
+`df`: determines how much space left on the file system
+`gzip science.txt`: compress the files to reduce the space
+`gunzip science.txt.gz`: expand the zip files
+`diff`: finds the difference of files
+`find`: find files from the current directory(.)
+`find . -name "*.txt" -print`: print all the text, and print the files
+
+##### Compiling UNIX Software Programs
+
+*Steps to install the software:*
+- Locate and download the source code
+- Unpack the source code
+- Compile the code
+- Install the resulting executable
+- Set paths to the installation directory
+
+*Simplest way to compile a package:*
+- `cd` to the directory containing the packages's source code
+- `./configure` to configure the package for your system
+- Type `make` to compile the language
+- Optionally, type `make check` to run any self-tests that come with the package
+- Type `make stall` to install the programs and any data files and documentation
+- Optionally, type `make clean` to remove the program binaries and object files from source code directory
+
+THERE ARE PLENTY of MORE TOOLS in UNIX packages
+
+##### UNIX Variables
+
+There are two categories of variables. There is *shell variables* which are for temporary usage [undercased] and *environmental variables* are more greater permanence; they are usually capitalized. 
+
+Environmental Variables Ex:
+`echo $OSTYPE` ; display the current OS TYPE
+To see all the values of Environmental variables place this command
+`printenv | less`
+To see all the shell variables 
+`set | less`
+
+When logging in to a UNIX host, two files are used **.login**, which stores the environmental variables and **.cshrc**, which stores the shell variables of current session.  **WARNING**: Never put command that run graphical displays on these files.
+
+*Setting shell variables*
+1) We can set the shell history to 200 by command: `set history = 200`. This command is changed temporarily
+2) To **permanently** set value of history:
+```{r}
+nedit ~/.cshrc # a special editor to edit files
+set history = 200
+source .cshrc # this save the file
+```
+
+**Setting the Path!**
+
+Notice: we often see `Command not found`. This can can happen by two means: 1) the command doesn;t exist or 2) we are not in *right path*
+
+To correct the second issue, we need either manually set the path:
+`set path = ($path ~/units174/bin)`
+OR more simply *change the directory where the path works*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+`
+
+
+

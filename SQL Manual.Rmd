@@ -5,6 +5,7 @@ date: "September 25, 2014"
 output: html_document
 ---
 
+
 #### Introduction
 
 SQL is used to take information from relational databases. It is significantly much more efficient than R in certain fucnitons  becuase it alegabraically optimize operations. Normally the strategy involves. The operations are extremely simple in comparison to R and other languages. Unfortunately there is several forms of SQL depending on the server. **Note:** SQL commands are capitalized to be read easier. Also semicolon designate the end of a line of code 
@@ -16,9 +17,12 @@ Basic Reminders
 * WHERE is "if" clause
 * BETWEEN is for range (works string); IN for precise subset; EX: Price BETWEEN 10 and 20
 * AND/ OR and NOT for negation; Ex: City='blue' and Price NOT IN (10,20)
+* IN statement can replace multiple OR statements. [Not also allowedFNU]
 * ORDER BY is the arrange fucntion
+* Use COUNT(1) instead of COUNT(asterick) if you need to count number of entries
 * SELECT DISTINCT is used to return only different values; this varies from UNIQUE
 * Date Types vary amongst Database so check out sources
+* A `semi-colon` ends a query
 
 A) Selection 
 
@@ -49,7 +53,6 @@ WHERE ProductName BETWEEN 'C' AND 'M'; # select between products between the cha
 ```    
 Notice that the BETWEEN operator can produce different result in different databases!
 
-
     Select Specific number of entries
 ```{r}
 # MYSQL
@@ -63,9 +66,13 @@ WHERE ROWNUM <=5; # limit the entries to 5
 # Select some ordered amount
 SELECT TOP 2 * FROM Customers; # select first two entries
 SELECT TOP 50 PERCENT * FROM Customers; # first 50%
+# Skip certain entries use OFFSET
+SELECT *
+FROM Persons
+LIMIT 5 OFFSET 2; # there is five entries but the first wo entries are skipped
 ```
 
-LIKE operator acts like a grep function in R: example below
+`LIKE` operator acts like a grep function in R: example below
 ```{r}
 SELECT * FROM Customers
 WHERE City LIKE 's%'; # pick cities that start with letter s
@@ -80,7 +87,6 @@ WHERE City LIKE 's%'; # pick cities that start with letter s
 * '[bsp]%'; # [bsp] select the city starting with b, p, or s
 * '[a-c]%'; # [a-c] select starting a,b,c
 * '[!bsp]%'; # [!bsp] Not; alternative- NOT LIKE '[bsp]%'
-```
     
     Ordering: Could be important in improving efficiency if properly ordered
 ```{r}
@@ -133,9 +139,9 @@ WHERE c.CustomerName="Around the Horn" AND c.CustomerID=o.CustomerID
 
 F) SQL Joins
 
-* SQL INNER JOIN return all rows from multiple tables where the join condition is met
-* LEFT JOIN keyword returns all rows from the left table (table1), with the matching rows in the right table (table2). ; RIGHT Join is reversal
-* FULL OUTER JOIN keyword combines the result of both LEFT and RIGHT joins
+* SQL `INNER JOIN` return all rows from multiple tables where the join condition is met
+* `LEFT JOIN` keyword returns all rows from the left table (table1), with the matching rows in the right table (table2). ; RIGHT Join is reversal
+* `FULL OUTER JOIN` keyword combines the result of both LEFT and RIGHT joins
 
 Example
 ```{r}
@@ -146,10 +152,12 @@ ON Orders.CustomerID=Customers.CustomerID # the common ID to connect
 ORDER BY Customers.CustomerName; # how we want to view the data
 ```
 
-G) UNION - It is special SELECT statement that takes information from mutiple tables. However, the column need to have same name, type, and the table need to be similar (?)
+G) `UNION` - It is special SELECT statement that takes information from multiple tables. However, the column need to have same name, type, and the table need to be similar (?). This is similar to the **Merge** feature in many databases. **Note:** the number of fields need to be the same for the UNION to work
 
-* UNION selects only the distinct values and duplicate them
-* UNION ALL gets the redundant values
+* UNION - the values of the first query are returned with the values of the second query eliminating duplicates. 
+* MINUS - the values of the first query are returned with duplicates values of the second query removed from the first query. [mutually exclusive first query]
+* UNION ALL - the values of both queries are returned including all duplicates 
+* INTERSECT - only the duplicate values are returned from both queries.
 
 Example:
 ```{r}
@@ -161,7 +169,22 @@ WHERE Country='Germany'
 ORDER BY City; # select all (duplicate values also) German cities
 ```
 
-F) SELECT INTO statement copies data from one table and inserts it into a new table.
+In this example, the fields have different names but nevertheless match, also *notice* the ORDER BY allows to order on basis of location
+```{r}
+SELECT supplier_id, supplier_name
+FROM suppliers
+WHERE supplier_id > 2000
+UNION
+SELECT company_id, company_name
+FROM companies
+WHERE company_id > 1000
+ORDER BY 2;
+```
+
+**Note:** The difference between UNION and INTERSECT is that INTERSECT only keep the duplicated values, while UNION keeps all the unique values of each entry removing duplicate
+
+
+H) SELECT INTO statement copies data from one table and inserts it into a new table.
 
 ```{r}
 SELECT CustomerName, ContactName
@@ -181,13 +204,35 @@ ON Customers.CustomerID=Orders.CustomerID; # Copy data from more than one table 
 
 ```
 
-G) INSERT INTO SELECT statement copies data from one table and inserts it into an existing table.
+I) INSERT INTO SELECT statement copies data from one table and inserts it into an existing table.
 
 ```{r}
 INSERT INTO Customers (CustomerName, Country)
 SELECT SupplierName, Country FROM Suppliers
 WHERE Country='Germany'; # copy German suppliers into customers which has CustomerName and Country
 ```
+
+J) Using `IS NULL` condition which determines if there is missing value (TRUE) at an entry; `IS NOT NULL` is the polar opposite 
+
+Examples:
+```{r}
+# View the entries with suppliers name missing
+SELECT *
+FROM suppliers
+WHERE supplier_name IS NULL;
+# Replace missing values with another set of values
+INSERT INTO suppliers
+(supplier_id, supplier_name)
+SELECT account_no, name
+FROM customers
+WHERE city IS NULL;
+# Update/Repace missing values
+UPDATE suppliers
+SET supplier_name = 'Apple'
+WHERE supplier_name IS NULL;
+```
+
+
 
 
 #### Creating Data
@@ -209,7 +254,7 @@ CREATE TABLE table_name
 column_name1 data_type(size),
 column_name2 data_type(size),
 column_name3 data_type(size),
-)
+);
 # example
 CREATE TABLE PersonsNotNull # name of Table
 (
@@ -220,9 +265,8 @@ FirstName varchar(255),
 Address varchar(255),
 City varchar(255)
 #### UNIQUE (P_Id) is added under Oracle
-)
+);
 ```
-
 
 Other Table Operations:
 ```{r}
@@ -253,6 +297,14 @@ FROM [Product Sales for 1997]
 GROUP BY CategoryName; # calculates the total sale for each category in 1997. Note that this view selects its data from another view called "Product Sales for 1997"
 ```
 
+`CREATE TABLE AS` allows you to create a table that has elements of another table
+```{r}
+CREATE TABLE suppliers
+  AS (SELECT companies.id, companies.address, categories.cat_type
+      FROM companies, categories
+      WHERE companies.id = categories.id
+      AND companies.id > 1000);
+```
 
 C) Working with constraints, primary keys [only one primary key allowed], foreign keys
 
@@ -336,7 +388,7 @@ CREATE (UNIQUE) INDEX PIndex
 ON Persons (LastName, FirstName); # index on table with duplicate values and put unique option for non-duplication
 ```
 
-D) SQL Group by a category
+D) SQL `Group By` a category
 
 ```{r}
 # Single Grouping
@@ -356,6 +408,40 @@ GROUP BY ShipperName,LastName; # double layer grouping
 
 ```
 
+E) The `ALTER TABLE` command allows you to to RENAM (columns and table), MODIFY (change type), DELETE, and ADD columns.
+
+Add:
+```{r}
+ALTER TABLE supplier
+  ADD (supplier_name varchar2(50),
+       city varchar2(45));
+```
+
+Modify:
+```{r}
+ALTER TABLE supplier
+  MODIFY (supplier_name varchar2(100) not null,
+          city varchar2(75));
+```
+
+Drop:
+```{r}
+ALTER TABLE supplier
+  DROP COLUMN supplier_name;
+```
+
+Rename Columns:
+```{r}
+ALTER TABLE supplier
+  RENAME COLUMN supplier_name to sname;
+```
+
+Rename Table:
+```{r}
+ALTER TABLE suppliers
+  RENAME TO vendors;
+```
+
 E) SQL injection is a technique where malicious users can inject SQL commands into an SQL statement, via web page input. It compromise the security of a web application.
 
 Example #1:
@@ -370,7 +456,6 @@ SELECT * FROM Users WHERE UserId = 105 or 1=1
 SELECT UserId, Name, Password FROM Users WHERE UserId = 105 or 1=1
 # A smart hacker might get access to all the user names and passwords in a database by simply inserting 105 or 1=1 into the input box.
 ```
-
 
 Example 2: A smart hacker might get access to user names and passwords in a database by simply inserting " or ""=" into the user name or password text box.
 
@@ -509,7 +594,7 @@ WHERE Price>(SELECT AVG(Price) FROM Products); # shows product name and price wh
 SELECT COUNT(DISTINCT column_name) FROM table_name; # count unique entries
 ```
 
-HAVING function is similar to where but for functions
+HAVING function is similar to where but for functions such as GROUP BY
 ```{r}
 SELECT Employees.LastName, COUNT(Orders.OrderID) AS NumberOfOrders FROM Orders
 INNER JOIN Employees
@@ -526,15 +611,571 @@ With SQL, how can you insert "Olsen" as the "LastName" in the "Persons" table?
 INSERT INTO Persons (LastName) VALUES ('Olsen')
 ```
 
-
-
-
-
-
-
-```{r, results='markup', message=FALSE}
-# Hello
-library(caret)
-mtcars
-summary(mtcars)
+`SQL Exist` Condtion allows a *subquery* to be implemented. **Note:** Using a subquery is very iniefficient since the sub-query is RE-RUN for EVERY row in the outer query's table. There are more efficient ways to write most queries, that do not use the SQL EXISTS Condition.
+Example: with delete statement
+```{r}
+DELETE FROM suppliers
+WHERE EXISTS (SELECT *
+              FROM orders
+              WHERE suppliers.supplier_id = orders.supplier_id);
 ```
+
+
+##### Exercises
+
+**Selection**
+
+1) Based on the *customers* and *old_customers table*, select the *customer_id* and *customer_name* from the customers table that exist in the *old_customers* table (matching the *customer_id* field from the customers table to the *old_customer_id* field in the *old_customers* table). Order the results in ascending order by *customer_name* and then descending order by *customer_id*.
+
+Creating Tables
+```{r}
+CREATE TABLE customers
+( customer_id number(10) not null,
+  customer_name varchar2(50) not null,
+  city varchar2(50),
+  CONSTRAINT customers_pk PRIMARY KEY (customer_id)
+);
+
+CREATE TABLE old_customers
+( old_customer_id number(10) not null,
+  old_customer_name varchar2(50) not null,
+  old_city varchar2(50),
+  status varchar2(20),
+  CONSTRAINT old_customers_pk PRIMARY KEY (old_customer_id)
+);
+```
+
+**Solution:** Notice we use the `SQL EXIST` clause
+```{r}
+SELECT customer_id, customer_name
+FROM customers
+WHERE EXISTS
+  ( SELECT old_customers.old_customer_id
+    FROM old_customers
+    WHERE old_customers.old_customer_id = customers.customer_id )
+ORDER BY customer_name ASC, customer_id DESC;
+```
+
+**LIKE Command**
+
+1) Based on the employees table populated with the following data, find all records whose employee_name ends with the letter "h".
+
+Creating Tables
+```{r}
+CREATE TABLE employees
+( employee_number number(10) not null,
+  employee_name varchar2(50) not null,
+  salary number(6),
+  CONSTRAINT employees_pk PRIMARY KEY (employee_number)
+);
+
+INSERT INTO employees (employee_number, employee_name, salary)
+VALUES (1001, 'John Smith', 62000);
+
+INSERT INTO employees (employee_number, employee_name, salary)
+VALUES (1002, 'Jane Anderson', 57500);
+
+INSERT INTO employees (employee_number, employee_name, salary)
+VALUES (1003, 'Brad Everest', 71000);
+
+INSERT INTO employees (employee_number, employee_name, salary)
+VALUES (1004, 'Jack Horvath', 42000);
+```
+
+**Solution:**
+```{r}
+SELECT *
+FROM employees
+WHERE employee_name LIKE '%h';
+```
+
+2) Based on the employees table populated with the following data, find all records whose employee_name contains the letter "s".
+
+**Solution:**
+```{r}
+SELECT *
+FROM employees
+WHERE employee_name LIKE '%s%';
+```
+
+3) Based on the suppliers table populated with the following data, find all records whose supplier_id is 4 digits and starts with "500".
+
+Creating Tables:
+```{r}
+CREATE TABLE suppliers
+( supplier_id varchar2(10) not null,
+  supplier_name varchar2(50) not null,
+  city varchar2(50),
+  CONSTRAINT suppliers_pk PRIMARY KEY (supplier_id)
+);
+
+INSERT INTO suppliers(supplier_id, supplier_name, city)
+VALUES ('5008', 'Microsoft', 'New York');
+
+INSERT INTO suppliers (supplier_id, supplier_name, city)
+VALUES ('5009', 'IBM', 'Chicago');
+
+INSERT INTO suppliers (supplier_id, supplier_name, city)
+VALUES ('5010', 'Red Hat', 'Detroit');
+
+INSERT INTO suppliers (supplier_id, supplier_name, city)
+VALUES ('5011', 'NVIDIA', 'New York');
+```
+
+**Solution:** Notice it restricts to only 4 digits
+```{r}
+SELECT *
+FROM suppliers
+WHERE supplier_id LIKE '500_';
+```
+
+**INSERT Command**
+
+**Standard Question:** I am setting up a database with clients. I know that you use the SQL INSERT statement to insert information in the database, but how do I make sure that I do not enter the same client information again?
+
+**Answer:** You can make sure that you do not insert duplicate information by using the SQL EXISTS condition.
+
+For example, if you had a table named clients with a primary key of client_id, you could use the following SQL INSERT statement:
+```{r}
+INSERT INTO clients
+(client_id, client_name, client_type)
+SELECT supplier_id, supplier_name, 'advertising'
+FROM suppliers
+WHERE NOT EXISTS (SELECT *
+                  FROM clients
+                  WHERE clients.client_id = suppliers.supplier_id);
+```
+
+This SQL INSERT statement inserts multiple records with a subselect.
+If you wanted to insert a single record, you could use the following SQL INSERT statement:
+```{r}
+INSERT INTO clients
+(client_id, client_name, client_type)
+SELECT 10345, 'IBM', 'advertising'
+FROM dual
+WHERE NOT EXISTS (SELECT *
+                  FROM clients
+                  WHERE clients.client_id = 10345);
+```
+
+The use of the dual table allows you to enter your values in a select statement, even though the values are not currently stored in a table.
+
+1) Based on the *customers* and *old_customers* table, insert into the customers table all records from the *old_customers* table whose status is DELETED.
+
+Create tables
+```{r}
+CREATE TABLE customers
+( customer_id number(10) not null,
+  customer_name varchar2(50) not null,
+  city varchar2(50),
+  CONSTRAINT customers_pk PRIMARY KEY (customer_id)
+);
+
+CREATE TABLE old_customers
+( old_customer_id number(10) not null,
+  old_customer_name varchar2(50) not null,
+  old_city varchar2(50),
+  status varchar2(20),
+  CONSTRAINT old_customers_pk PRIMARY KEY (old_customer_id)
+);
+```
+
+**Solution:**
+```{r}
+INSERT INTO customers
+(customer_id, customer_name, city)
+SELECT old_customer_id, old_customer_name, old_city
+FROM old_customers
+WHERE status = 'DELETED';
+```
+
+**Update Command:**
+
+1) Based on the suppliers table populated with the following data, update the city to "Santa Clara" for all records whose supplier_name is "NVIDIA".
+
+**Solution:**
+```{r}
+UPDATE suppliers
+SET city = 'Santa Clara'
+WHERE supplier_name = 'NVIDIA';
+```
+
+2) **GOOD ONE:** Based on the *suppliers* and *customers* table populated with the following data, update the city in the *suppliers* table with the city in the customers table when the *supplier_name* in the suppliers table matches the *customer_name* in the customers table. 
+
+Create Tables:
+```{r}
+CREATE TABLE suppliers
+( supplier_id number(10) not null,
+  supplier_name varchar2(50) not null,
+  city varchar2(50),
+  CONSTRAINT suppliers_pk PRIMARY KEY (supplier_id)
+);
+
+INSERT INTO suppliers (supplier_id, supplier_name, city)
+VALUES (5001, 'Microsoft', 'New York');
+
+INSERT INTO suppliers (supplier_id, supplier_name, city)
+VALUES (5002, 'IBM', 'Chicago');
+
+INSERT INTO suppliers (supplier_id, supplier_name, city)
+VALUES (5003, 'Red Hat', 'Detroit');
+
+INSERT INTO suppliers (supplier_id, supplier_name, city)
+VALUES (5005, 'NVIDIA', 'LA');
+
+
+CREATE TABLE customers
+( customer_id number(10) not null,
+  customer_name varchar2(50) not null,
+  city varchar2(50),
+  CONSTRAINT customers_pk PRIMARY KEY (customer_id)
+);
+
+INSERT INTO customers (customer_id, customer_name, city)
+VALUES (7001, 'Microsoft', 'San Francisco');
+
+INSERT INTO customers (customer_id, customer_name, city)
+VALUES (7002, 'IBM', 'Toronto');
+
+INSERT INTO customers (customer_id, customer_name, city)
+VALUES (7003, 'Red Hat', 'Newark');
+```
+
+**Solution [The solution seems weak]:**
+First, we **only set** the city name if customer city and supplier city match. Hence we implement a **subquery** on the city equal statement.
+```{r}
+UPDATE suppliers
+SET city = (SELECT customers.city
+            FROM customers
+            WHERE customers.customer_name = suppliers.supplier_name)
+WHERE EXISTS (SELECT customers.city
+              FROM customers
+              WHERE customers.customer_name = suppliers.supplier_name);
+```
+
+**My Solution**
+```{r}
+UPDATE suppliers
+SET city = customers.city
+WHERE EXISTS (SELECT customers.city
+              FROM customers
+              WHERE customers.customer_name = suppliers.supplier_name);
+```
+
+**DELETE command**
+
+**Standard FAQ**
+How would I write a SQL DELETE statement to delete all records in TableA whose data in field1 & field2 DO NOT match the data in fieldx & fieldz of TableB?
+
+```{r}
+DELETE FROM TableA
+WHERE NOT EXISTS
+  ( SELECT *
+    FROM TableB
+     WHERE TableA.field1 = TableB.fieldx
+     AND TableA.field2 = TableB.fieldz );
+```
+
+1) Based on the customers and oldcustomers table, delete from the customers table all records that exist in the oldcustomers table (matching the customerid field from the customers table to the oldcustomerid field in the old_customers table).
+
+**Solution:**
+```{r}
+DELETE FROM customers
+WHERE EXISTS
+  ( SELECT old_customers.old_customer_id
+    FROM old_customers
+    WHERE old_customers.old_customer_id = customers.customer_id );
+```
+
+**COUNT command:**
+
+1) Based on the employees table populated with the following data, count the number of employees whose salary is over $55,000 per year.
+
+**Solution:**
+```{r}
+SELECT COUNT(1) AS "Number of employees"
+FROM employees
+WHERE salary > 55000;
+```
+
+2) Based on the suppliers table populated with the following data, count the number of distinct cities in the suppliers table:
+
+**Solution:**
+```{r}
+SELECT COUNT(DISTINCT city) AS "Distinct Cities"
+FROM suppliers;
+```
+
+3) **GOOD**: Based on the customers table populated with the following data, count the number of distinct cities for each customer_name in the customers table:
+
+**Solution:** We use group by to resolve this problem
+```{r}
+SELECT customer_name, COUNT(DISTINCT city) AS "Distinct Cities"
+FROM customers
+GROUP BY customer_name;
+```
+
+**MAX COMMAND**:
+
+**Common Problems:**
+
+1) Question: I'm trying to get the employee with the maximum salary from department 30, but I need to display the employee's full information. I've tried the following query, but it returns the result from both department 30 and 80:
+```{r}
+SELECT *
+FROM employees
+WHERE salary = (SELECT MAX(salary)
+                FROM employees
+                WHERE department_id=30);
+```
+
+**Solution:** The SQL SELECT statement that you have written will first determine the maximum salary for department 30, but then you select all employees that have this salary. In your case, you must have 2 employees (one in department 30 and another in department 80) that have this same salary. You need to *make sure that you are refining your query results* to only return employees from department 30.
+
+```{r}
+SELECT *
+FROM employees
+WHERE department_id=30
+AND salary = (SELECT MAX(salary)
+              FROM employees
+              WHERE department_id=30);
+```
+
+2) I'm trying to retrieve some info from an Oracle database. I've got a table named Scoring with two fields - Name and Score. What I want to get is the highest score from the table and the name of the player.
+
+**Solution:** We use a *Sub-query* to find the value of the highest
+```{r}
+SELECT Name, Score
+FROM Scoring
+WHERE Score = (SELECT MAX(Score) FROM Scoring);
+```
+
+3) I have a table in Oracle called orders which has the following fields: order_no, customer, and amount. I need a query that will return the customer who has ordered the highest total amount.
+
+**Solution: [Complicated]**
+```{r}
+SELECT query1.*
+FROM (SELECT customer, SUM(orders.amount) AS total_amt
+      FROM orders
+      GROUP BY orders.customer) query1,
+
+     (SELECT MAX(query2.total_amt) AS highest_amt
+      FROM (SELECT customer, SUM(orders.amount) AS total_amt
+            FROM orders
+            GROUP BY orders.customer) query2) query3
+WHERE query1.total_amt = query3.highest_amt;
+```
+
+This SQL SELECT statement will summarize the total orders for each customer and then return the customer with the highest total orders. This syntax is optimized for Oracle and may not work for other database technologies.
+
+4) Question: I need help in a SQL query. I have a table in Oracle called custorder which has the following fields: OrderNo, Customerid, OrderDate, and Amount.
+
+I would like to find the customer_id, who has Highest order count. I tried the following:
+```{r}
+SELECT MAX(COUNT(*))
+FROM CUST_ORDER
+GROUP BY CUSTOMER_ID;
+```
+
+This gives me the max Count, But, I can't get the CUSTOMER_ID. Can you help me please?
+
+**Solution: [COMPLICATED!]** The following SQL SELECT statement should return the customer with the highest order count in the cust_order table.
+```{r}
+SELECT query1.*
+FROM (SELECT Customer_id, Count(*) AS order_count
+      FROM cust_order
+      GROUP BY cust_order.Customer_id) query1,
+      
+     (SELECT max(query2.order_count) AS highest_count
+      FROM (SELECT Customer_id, Count(*) AS order_count
+            FROM cust_order
+            GROUP BY cust_order.Customer_id) query2) query3
+WHERE query1.order_count = query3.highest_count;
+```
+
+This SQL SELECT statement will summarize the total orders for each customer and then return the customer with the highest order count. This syntax is optimized for Oracle and may not work for other database technologies.
+
+5)  I'm trying to pull some info out of a table. To simplify, let's say the table (report_history) has 4 columns: user_name, report_job_id, report_name, and report_run_date.
+
+Each time a report is run in Oracle, a record is written to this table noting the above info. What I am trying to do is pull from this table when the last time each distinct report was run and who ran it last. My initial query runs fine. However, it does not provide the name of the user who ran the report:
+```{r}
+SELECT report_name, MAX(report_run_date)
+FROM report_history
+GROUP BY report_name
+```
+
+Adding user_name to both the select list and to the group by clause returns multiple lines for each report; the results show the last time each person ran each report in question. (i.e. User1 ran Report 1 on 01-JUL-03, User2 ran Report1 on 01-AUG-03). I don't want that....I just want to know who ran a particular report the last time it was run.
+
+**Solution:** This is where things get a bit **complicated**. The SQL SELECT statement below will return the results that you want:
+```{r}
+SELECT rh.user_name, rh.report_name, rh.report_run_date
+FROM report_history rh,
+  (SELECT MAX(report_run_date) AS maxdate, report_name
+   FROM report_history
+   GROUP BY report_name) maxresults
+WHERE rh.report_name = maxresults.report_name
+AND rh.report_run_date= maxresults.maxdate;
+```
+Let's take a few moments to explain what we've done.
+*First*, we've aliased the first instance of the report_history table as rh.
+*Second*, we've included two components in our FROM clause. The first is the table called report_history (aliased as rh). 
+
+The second is a select statement:
+```{r}
+(SELECT MAX(report_run_date) AS maxdate, report_name
+ FROM report_history
+ GROUP BY report_name) maxresults
+```
+
+We've aliased the max(report_run_date) as maxdate and we've aliased the entire result set as maxresults.Now, that we've created this select statement within our FROM clause, Oracle will let us join these results against our original report_history table. So we've joined the report_name and report_run_date fields between the tables called rh and maxresults. This allows us to retrieve the report_name, max(report_run_date) as well as the user_name.
+
+** UNION Operator**
+
+**Question:** I need to compare two dates and return the count of a field based on the date values. For example, I have a date field in a table called last updated date. I have to check if trunc(last_updated_date >= trunc(sysdate-13).
+
+**Answer:** Since you are using the COUNT function which is an aggregate function, we'd recommend using the Oracle UNION operator. For example, you could try the following:
+```{r}
+SELECT a.code AS Code, a.name AS Name, COUNT(b.Ncode)
+FROM cdmaster a, nmmaster b
+WHERE a.code = b.code
+AND a.status = 1
+AND b.status = 1
+AND b.Ncode <> 'a10'
+AND TRUNC(last_updated_date) <= TRUNC(sysdate-13)
+GROUP BY a.code, a.name
+UNION
+SELECT a.code AS Code, a.name AS Name, COUNT(b.Ncode)
+FROM cdmaster a, nmmaster b
+WHERE a.code = b.code
+AND a.status = 1
+AND b.status = 1
+AND b.Ncode <> 'a10'
+AND TRUNC(last_updated_date) > TRUNC(sysdate-13)
+GROUP BY a.code, a.name;
+```
+
+The Oracle UNION allows you to perform a count based on one set of criteria.
+```{r}
+TRUNC(last_updated_date) <= TRUNC(sysdate-13)
+```
+As well as perform a count based on another set of criteria.
+```{r}
+TRUNC(last_updated_date) > TRUNC(sysdate-13)
+```
+
+**CREATE Table**
+
+1) Create a SQL table called customers that stores customer ID, name, and address information. But this time, the customer ID should be the primary key for the table.
+
+**Solution:**
+```{r}
+CREATE TABLE customers
+( customer_id number(10) not null,
+  customer_name varchar2(50) not null,
+  address varchar2(50),
+  city varchar2(50),
+  state varchar2(25),
+  zip_code varchar2(10),
+  CONSTRAINT customers_pk PRIMARY KEY (customer_id)
+);
+```
+
+2) Based on the departments table below, create a SQL table called employees that stores employee number, employee name, department, and salary information. The primary key for the employees table should be the employee number. Create a foreign key on the employees table that references the departments table based on the department_id field.
+
+Create Table:
+```{r}
+CREATE TABLE departments
+( department_id number(10) not null,
+  department_name varchar2(50) not null,
+  CONSTRAINT departments_pk PRIMARY KEY (department_id)
+);
+```
+
+**Solution:**
+```{r}
+CREATE TABLE employees
+( employee_number number(10) not null,
+  employee_name varchar2(50) not null,
+  department_id number(10),
+  salary number(6),
+  CONSTRAINT employees_pk PRIMARY KEY (employee_number),
+  CONSTRAINT fk_departments
+    FOREIGN KEY (department_id)
+    REFERENCES departments(department_id)
+);
+```
+
+3) How can I create a SQL table from another table without copying any values from the old table? **Create an empty table that keeps the columns**
+
+**Solution:**
+```{r}
+CREATE TABLE suppliers
+  AS (SELECT *
+      FROM companies WHERE 1=2);
+```
+
+**ALTERING TABLES**
+
+1) Based on the departments table below, rename the departments table to depts.
+
+Table:
+```{r}
+CREATE TABLE departments
+( department_id number(10) not null,
+  department_name varchar2(50) not null,
+  CONSTRAINT departments_pk PRIMARY KEY (department_id)
+);
+```
+
+**Solution:** 
+```{r}
+ALTER TABLE departments
+  RENAME TO depts;
+```
+
+2) Based on the employees table below, add a column called salary that is a number(6) datatype.
+
+Table:
+```{r}
+CREATE TABLE employees
+( employee_number number(10) not null,
+  employee_name varchar2(50) not null,
+  department_id number(10),
+  CONSTRAINT employees_pk PRIMARY KEY (employee_number)
+);
+```
+
+**Solution**:
+```{r}
+ALTER TABLE employees
+  ADD salary number(6);
+```
+
+3) Based on the customers table below, add two columns - one column called contact_name that is a varchar2(50) datatype and one column called lastcontacted that is a date datatype.
+
+```{r}
+ALTER TABLE customers
+  ADD (contact_name varchar2(50),
+       last_contacted date);
+```
+
+4) Based on the employees table below, change the employee_name column to a varchar2(75) datatype.
+
+```{r}
+ALTER TABLE employees
+  MODIFY employee_name varchar2(75);
+```
+
+**VIEWS Common Questions**
+
+1) Can you update the data in a SQL VIEW?
+
+**Answer:** A VIEW in SQL is created by joining one or more tables. When you update record(s) in a view, it updates the records in the underlying tables that make up the SQL View.
+
+So, yes, you can update the data in a SQL VIEW providing you have the proper privileges to the underlying SQL tables.
+
+2) Does the SQL View exist if the table is dropped from the database?
+
+**Answer:** Yes, in Oracle, the SQL VIEW continues to exist even after one of the tables (that the SQL VIEW is based on) is dropped from the database. However, if you try to query the SQL VIEW after the table has been dropped, you will receive a message indicating that the SQL VIEW has errors.
+
+If you recreate the table (the table that you had dropped), the SQL VIEW will again be fine.
+
+

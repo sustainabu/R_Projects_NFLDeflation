@@ -178,7 +178,7 @@ ts= (xM-xG)/sqrt(sM^2/nM + sG^2/nG)
 
 
 
-Optimization: R miniimizes objective functions so need to use negative log-likelihood
+Optimization: R minimizes objective functions so need to use negative log-likelihood
 
 Random Sampling
 ```{r, message=FALSE}
@@ -198,7 +198,7 @@ seq(1,10, length=6) # it now takes this range and splits it perfectly evenly
 
 
 
-Creating Categorical varaibles (library Hmisc package:
+Creating Categorical varaibles (library Hmisc package):
 ```{r}
 cut2(Cars$wt, g=4) #splits the data into equal parts in attempt to maintain same number of variables in each group
 cut2(Cars$wt, c(2,3,4,5)) # these are the cutpoints in which to categorize. Automatically finds the lower and upper bounds
@@ -240,6 +240,7 @@ image.plot(x1s, x2s, matrix(log(fx), 100), xlab = '', ylab = '')
 optim(c(-2,0), banana)
 ```
 
+```{r}
 ## $par
 ## [1] 1.003 1.006
 ## $value
@@ -251,6 +252,8 @@ optim(c(-2,0), banana)
 ## [1] 0
 ## $message
 ## NULL
+```
+
 
 We can see the progression of evaluations of the objective function:
 ```{r eval=FALSE}
@@ -331,9 +334,6 @@ mean(earnings$earn, na.rm = TRUE)
 smp <- sample(seq_len(nrow(earnings)), replace = TRUE) 
 mean(earnings$earn[smp], na.rm = TRUE)
 ```
-
-
-
 
 
 Functions Examples: 

@@ -1,0 +1,505 @@
+---
+title: "NFL Deflate-Gate Analysis"
+author: "Abu Nayeem"
+last update: "January 28, 2015"
+output: html_document
+---
+
+### Introduction: Deflate-Gate Controversy
+
+On January 18th, 2015, the New England Patriots were facing the Indianapolis in the AFC Championship Title Game at FoxBourough Stadium,Boston. During the start of the second half, the referees inspected the footballs being used by the NE Patriots. The referees have found the football to be deflated [10.5 Pounds square inch(PSI)] below the normal specification [12.5 PSI]. The referees measured all the balls and found that 11 out of 12 footballs deflated below league standards. The deflated footballs can give New England a significant advantage during wet conditions, where the ball is easier to grip, and catch.
+
+In light of this controversy, the Patriots' quarterback, Tom Brady, and Patriots' head coach, Bill Bellicheck, deny knowing anything of the ball deflation and claimed that the deflation was due to natural causes. There will be further investigations to determine if the deflation was done purposefully for the game and whom is held responsible. However, it is possible for the Patriots to be enacting this procedure throughout the previous year.To determine the plausibility of prolonged violations by the Patriots, I will implement statistical and data analysis.
+
+**Disclaimer:** This analysis does NOT make any causal claims but merely highlights if there is suspicious behavior depicted from the data.  
+
+**Primary Source**
+
+* [Report: Colts Raised Concerns About Under-Inflated Balls After Game vs. Patriots in Indianapolis](http://www.boston.com/sports/football/patriots/extra_points/2015/01/report_patriots_may_have_deflated_footballs_for_af.html) by Steve Silva
+
+
+### The DataSet
+
+The dataset was collected from [NFLSavant.com](http://nflsavant.com/about.php) which uses publicly available information and includes:
+
+* Play-by-Play data for all regular season games for all teams in 2013 and 2014. There is over 45 columns and provides granular data. The primary key variables include GameID, Date, Quarter, and Relative starting time of play. In other words, you can sort the plays chronologically allowing more insight. Note: The Play-by-play dataset is large and most desktops will not be able to open a single document 
+
+* Other data include weather data ranging from 1960 to 2013, and player profile data. 
+
+### Background
+
+**The Rules:**
+
+* Each team brings 14 footballs to be measured. The referees measures each football approximately two hours before the game. The football need to be in range of 12.5-13.5 PSI [Pounds Square Inch] and weighs near 14 to 15 ounces. 
+* For special team plays, brand new specialized footballs are used, so they cannot be doctored 
+
+**Illustrative Details:**
+
+* In Game 11 of the regular season against the Indianapolis Colts, the Patriots were accused of deflating the football after Colts safety Mike Adams intercepted the ball twice from Tom Brady. The issue has been reported by the Colts organization and the 
+* The Baltimore Ravens in the previous postseason game against the Patriots also suspected the Patriots deflating footballs
+* The Patriots statement to the controversy is that the ball pressure decreased due to natural atmospheric conditions. However, the opposing teams footballs had normal pressure and the previous accusation occurred in an indoor stadium
+* In 2011, Tom Brady explicitly stated that he enjoyed throwing deflated footballs
+
+The following should provide **motivation** that prolonged tampering by the Patriots may have occurred.
+
+### Hypothesis
+
+There is no clear indication when the patriots began deflating the football. Nevertheless the data is restricted to 2013 and 2014.
+
+The **advantages** of a *deflated football* is better grip of the ball, which directly relates to better grasp of the ball, more control of the ball when thrown, and its easier to catch the ball when deflated. In addition, this benefits of deflation is heightened under *wet conditions*. Wet standard footballs are slippery, increasing the chances of fumbles occurring. The **direct measures** that would be impacted are the *total fumbles and pass completion ratio*. 
+
+**Implicit Assumptions/ Unknowns:**
+
+* I will assume the Patriots played with depleted balls throughout the entire season of 2014, unless the data suggest otherwise
+* Tom Brady is a hall of fame quarterback, so it will be difficult to distinguish heighten completion ratio attributed to deflated balls, so there is considerable noise
+* Other teams are not deflating the ball.
+
+**Hypotheses:**
+
+1) The total number of fumbles is lower for the patriots compared to other teams. The fumble distribution varies significantly in comparison to other teams particularly for rushing fumbles. **[TESTED]**
+
+2) The completion ratio should be higher, but however there is no perfect contra-positive or control for quarterback Tom Brady. We can make comparisons with the league top quarterbacks for comparison. The most convincing evidence would be to compare Tom Brady's performance compared to other top quarterbacks under wet conditions. **[NOT TESTED, NEED 2014 WEATHER DATA]**
+
+3) For running backs whom are recently in the Patriot roster or left the roster, do their performance significantly varies once playing or leaving the patriots **[SIGNIFICANT VARIATION DOES NOT EXIST OR TOO WEAK POWER]**
+
+### Preparation of Data Environment
+
+**Note:** this a self-containing script, where it can be run in any R machine granted the R packages are installed [chose not to include this] and have access to the internet. It will create a new working sub-directory, download the data, and carry out the analysis.
+
+Load Packages:
+```{r, message=FALSE}
+library(dplyr) # Allows special datatables that use more intuitive actions
+library(lubridate) # Convert Date characters to date variable with ease
+library(ggplot2) # Go to plotting device
+library(DataCombine) # Package provide tools to create lagged variables
+library(gridExtra) # Allows grid arrange for plotting
+library(scales) # Allows to use the percentage function
+```
+
+Set Working Directory and Download files
+```{r, message=FALSE, eval=FALSE}
+if (!getwd() == "./NFLStatistics") {
+    dir.create("./NFLStatistics")
+    setwd("./NFLStatistics")
+}
+playurl2013 <- "http://nflsavant.com/pbp_data.php"
+download.file(playurl2013, "nfl2013.csv", method = "curl") 
+playurl2014 <- "http://nflsavant.com/pbp_data.php?year=2014"
+download.file(playurl2014, "nfl2014.csv", method = "curl") 
+Sys.setlocale(locale = "C")
+```
+
+Set up arrays that will be used for loops [essentially any grouping can be an array]:
+```{r}
+# By default, the files should be located in working directory
+# The datafiles need to be IDENTICAL in number of columns and types
+DataFiles <- c("nfl2013.csv", "nfl2014.csv")
+# This array is used for operations specific on Year
+SeasonYear <- c(2013, 2014)
+#Set up Team Names; Note the names are for VALUES to GRAB by the GREP function
+TeamNames <- c("ARI", "ATL", "BAL", "BUF", "CHI", "CIN", "CAR", "CLE", "DAL", "DEN",
+               "DET", "GB", "HOU", "IND", "JAC", "KC", "MIA", "MIN", "NE", "NO", "NYG",
+               "NYJ", "OAK", "PHI", "PIT", "SD", "SEA", "SF", "STL", "TB", "TEN", "WAS")
+```
+
+Preview the data by extracting a small snippet: 
+**Note**: the column values will be used later. The dataset is too BIG to load into R all at once.
+```{r}
+NFL <- "nfl2014.csv"
+NFLData <- read.csv(NFL, nrows = 20, sep = ",", header = TRUE) 
+# str(NF:) to view data type
+```
+
+### Hypothesis 1
+
+**PART 1: Individual Team [Patriots] Analysis**
+
+I use a matching strategy to search for the specific text and the rows satisfying the criteria is exported. **Note:** this strategy does not provide column names, so you need to extract that separately. In addition, I put dataset into a data table, which enables different functionality in commands.
+
+Individual Team Extraction:
+```{r}
+# Extraction
+NFL <- file("nfl2014.csv", "r") 
+NEData <- read.csv(text =grep("NE", readLines(NFL), value = TRUE), header = FALSE, sep = ",")
+# Transfer to convenient datatable
+NEData <- tbl_df(NEData)
+# Obtain the column names from the snippet earlier
+colnames(NEData) <- colnames(NFLData) # get columns name from the snippet earlier
+```
+
+Filtering Criteria:
+```{r}
+# We are only concerned about offense; lets clean out the defensive plays 
+NEData <- filter(NEData, OffenseTeam == "NE")
+# Remove plays where penalties made the play meaningless
+NEData <- filter(NEData, IsNoPlay == 0)
+# Select the most interesting columns; standard IDs, Team designation, Yards, and Playtype, 
+NEData <- select(NEData, 1, 2, 3, 4, 5, 6, 7, 19, 20, 22, 25, 28, 34)
+# Choose PlayType that is appropiate for analysis. Note: normal footballs are only used in offense, so special team plays are meaningless for this study
+NEData <- filter(NEData, PlayType == "RUSH" | PlayType == "SACK" | PlayType == "PASS" | PlayType == "FUMBLES", PlayType == "SCRAMBLE")
+```
+
+**Aggregate Extraction via Loops:**
+
+The rationale of the loop is shown above in earlier section. The generalize loop works as follows, first create an empty dataframe to consolidate the data. Then for each year, and for each team, implement all the manipulations mentioned above and compile it to the empty dataframe. Remember use the arrays we created! 
+
+Create Empty Dataframe:
+```{r}
+# Make sure you place the right TOTAL COLUMNS expected. Note: column names are taken in automatically in loop
+CleanMaster <- data.frame(matrix(ncol = 13, nrow = 0))
+CleanMaster <- tbl_df(CleanMaster)
+```
+
+Aggregate Dataset Loop [Note: Prior to loop, the code was 800 lines long]
+```{r, warning=FALSE, message=FALSE}
+# The major workhorse loop; For slight improvements of efficiency, colclasses was included, but its not necessary. The setlocale line is meant to reset temporary file designation and enables reliability. Finally, ignore the warnings as they don't impact the code. 
+
+for (i in DataFiles) {
+    for (j in TeamNames) {
+        NFLYear <- file(i, "r") 
+        Data <- read.csv(text = grep(j, readLines(NFLYear), value = TRUE), header = FALSE,
+                         sep = ",", colClasses = c("integer","factor", rep("integer", times = 3), rep("factor", times = 2), rep("integer", times = 3), "logical", "integer", "logical", "integer", "factor", "integer", rep("logical", times = 2), rep("integer", times = 2), rep("factor", times = 2), rep("integer", times = 4), "factor", rep("integer", times = 3),
+"logical", rep("integer", times = 6), "factor", "integer", "factor", "integer", "factor", "integer", "factor", "integer"))
+            Data <- tbl_df(Data)
+            colnames(Data) <- colnames(NFLData)
+            Data <- filter(Data, OffenseTeam == j, IsNoPlay==0, PlayType == "RUSH" | PlayType == "SACK" | PlayType == "PASS" | PlayType == "FUMBLES" | PlayType == "SCRAMBLE") 
+            Data <- select(Data, 1, 2, 3, 4, 5, 6, 7, 19, 20, 22, 25, 28, 34)
+            CleanMaster <- rbind(CleanMaster, Data)
+            Sys.setlocale(locale = "C")
+        }
+    }
+```
+
+Other Modifications:
+```{r}
+# Convert the date into convenient format
+CleanMaster$GameDate <- ymd(CleanMaster$GameDate)
+# For universal sorting, note the data is time-sensitive
+CleanMaster <- arrange(CleanMaster, GameDate, GameId, Quarter, desc(Minute), desc(Second)) 
+```
+
+Finally, we filter out the Patriots
+```{r}
+CleanNE <- filter(CleanMaster, OffenseTeam == "NE") 
+```
+
+**Descriptive Statistics**
+
+Total Plays & Yards & Fumbles grouped by SeasonYear
+```{r}
+# Grouping the results by SeasonYear
+CleanNE <- group_by(CleanNE, SeasonYear)
+# Plays were determined by a count; to find total fumbles (add how many times logical statement IsFumble is true), the rest are self-explanatory
+summarize(CleanNE, Plays = sum(OffenseTeam == "NE"), Yards = sum(Yards), YardsPerPlay = Yards/Plays, Fumbles = sum(IsFumble == 1), YardsPerFumble = Yards/Fumbles)
+```
+
+Total Plays & Yards & Fumbles grouped by PlayType and SeasonYear
+```{r}
+# Grouping the results by first layer PlayType and second layer SeasonYear
+CleanNE <- group_by(CleanNE, PlayType, SeasonYear)
+summarize(CleanNE, Plays = sum(OffenseTeam == "NE"), Yards = sum(Yards), YardsPerPlay = Yards/Plays, Fumbles = sum(IsFumble == 1), YardsPerFumble = Yards/Fumbles)
+```
+
+Notice there is NO rushing fumbles in 2014!
+
+**Checking Anomalies**
+
+Check the anomaly in the fumbles category. Note to find this inquiry, I need to extract raw data once again but keep the more descriptive columns
+
+```{r, warning=FALSE, message=FALSE, results='hide'}
+Sys.setlocale(locale = "C")
+NFL <- file("nfl2013.csv", "r") 
+NEData <-read.csv(text = grep("NE", readLines(NFL), value = TRUE), header = FALSE, sep = ",")
+NEData <- tbl_df(NEData)
+colnames(NEData) <- colnames(NFLData)
+NEData <- filter(NEData, OffenseTeam == "NE", IsNoPlay == 0, PlayType == "FUMBLES")
+CleanFumble <- NEData
+rm(NEData)
+Sys.setlocale(locale = "C")
+NFL <- file("nfl2014.csv", "r") 
+NEData <- read.csv(text = grep("NE", readLines(NFL), value = TRUE), header = TRUE, sep = ",")
+NEData <- tbl_df(NEData)
+colnames(NEData) <- colnames(NFLData)
+NEData <- filter(NEData, OffenseTeam == "NE", IsNoPlay == 0, PlayType == "FUMBLES")
+CleanFumble <- rbind(CleanFumble, NEData)
+rm(NEData)
+```
+
+```{r}
+CleanFumble$Description
+```
+
+It turns out the category FUMBLES is *similar* to SACKs but where QB fumbles the ball while making forward progress or by error. This makes the sack fumble total 9 in 2013 and 5 in 2014.
+
+**More Advanced Metrics: Previous Accumulated Yards for each Fumble**
+
+How many plays or yards are accumulated before obtaining a fumble?
+
+Create an index; note the sum term is used to make the code *scalable*
+```{r}
+CleanNE <- arrange(CleanNE, GameDate, GameId, Quarter, desc(Minute), desc(Second)) 
+CleanNE$Index <- seq(1, sum(CleanNE$OffenseTeam == "NE"), by = 1)
+```
+
+Find the fumbles index number:
+```{r}
+Fumbles <- filter(CleanNE, IsFumble == 1)
+Fumbles$Index
+```
+
+Create each fumble zone, notice the region is denoted by an integer. The reason is that each zone is time-sensitive. In addition, the 23rd fumble follows from end of 2013 to 2014, which means it excludes the 2013 postseason and 2014 preseason. Also there are 32 fumbles but there are 33 zones. The 33rd zone does not finish with a fumble, but open-ended  
+
+The code structure would like this
+```{r, eval=FALSE}
+CleanNE$Fumble <- 1
+CleanNE$Fumble[CleanNE$Index > 32] <- 2
+CleanNE$Fumble[CleanNE$Index > 59] <- 3
+...
+```
+
+Looped Code: The match function creates the index relative to position inside the index
+```{r}
+    IndexFumble <- Fumbles$Index
+    CleanNE$Fumble <- 1
+    for (j in IndexFumble) {
+        CleanNE$Fumble[CleanNE$Index > j] <- match(j, IndexFumble) + 1}
+```
+
+Now we can *group by individual fumble*! Notice the condition in PlayCount assures that the fumble itself is not counted as a play.
+```{r}
+CleanNE <-group_by(CleanNE, Fumble) 
+# Table Summary
+SUM <- summarize(CleanNE, TotalPreviousYards = sum(Yards), PlayCount=sum(IsFumble == "0"))
+```
+
+Plot 1:
+```{r}
+ggplot(data =  SUM, aes (x = Fumble, y = TotalPreviousYards)) + geom_line(color = 'firebrick') + geom_smooth(method = "lm") + geom_vline(xintercept = 22, linetype = "dotted") + labs(x = "Fumbles (Chronological[2013-2014])", y = "Total Previous Yardage", title = "Patriots Total Yardage prior to Fumble (2013/2014)")
+```
+
+Notice the clumping of the bottom, this suggest many fumbles occur in very short spurts or in the same game. The dotted line indicates the start of 2014
+
+```{r}
+SUM2013 <- filter(SUM, Fumble < 23)
+SUM2014 <- filter(SUM, Fumble > 22)
+
+require(gridExtra)
+
+q <- ggplot(data = SUM2013, aes(x = Fumble, y = TotalPreviousYards)) + geom_line(color = 'firebrick') + geom_smooth(method = "lm") + labs(x = "Fumble (Chronological[2013])", y = "Total Previous Yardage", title = "2013 Patriots TotalYards per Fumble")
+
+r <- ggplot(data = SUM2014, aes(x = Fumble, y = TotalPreviousYards)) + geom_line(color = 'firebrick') + geom_smooth(method = "lm") + labs(x = "Fumble (Chronological[2014])", y = "Total Previous Yardage", title = "2014 Patriots TotalYards per Fumble")
+grid.arrange(q, r, nrow = 1, ncol = 2)
+```
+
+**Aggregate Data Analysis** 
+
+How do the Patriots compare to other teams in respect to total fumbles made?
+
+Total Plays & Yards & Fumbles grouped by SeasonYear and Offense team:
+```{r}
+# Creates a blank dummy index variable for count
+CleanMaster$Dummy <- "A" 
+# Grouping Code
+CleanMaster <- group_by(CleanMaster, SeasonYear, OffenseTeam)
+NFLStatAgg <- summarize(CleanMaster, Yards = sum(Yards), Fumbles = sum(IsFumble == 1), YardsPerFumble=Yards/Fumbles, RushingFumbles = sum(IsFumble == 1 & PlayType == "RUSH"))
+head(arrange(NFLStatAgg, Fumbles), 10)
+# Exclude Plays = sum(Dummy == "A") and YardsPerPlay = Yards/Plays
+```
+
+Note: The patriots in 2013 is ranked 57, but at 2014, the patriots did well.
+
+Total Plays & Yards & Fumbles by Playtype and SeasonYear: **NOTE:** I restricted the play type to RUSHING 
+```{r}
+CleanMaster <- group_by(CleanMaster, OffenseTeam, SeasonYear, PlayType)
+NFLStatPlay <- summarize(CleanMaster, Yards = sum(Yards), Fumbles = sum(IsFumble == 1), YardsPerFumble = Yards/Fumbles)
+NFLStatPlay <- filter(NFLStatPlay, PlayType == "RUSH")
+head(arrange(NFLStatPlay, Fumbles), 10)
+```
+
+**Plots:**
+
+```{r}
+qplot(Fumbles, YardsPerFumble, data = NFLStatPlay, col = OffenseTeam, xlab = "Fumbles", ylab = "YardsPerFumble", main = "Total Yardage prior to Fumble (2013/2014)")
+
+ggplot(data = NFLStatPlay, aes(x = Fumbles, y = Yards, group = 1, color = OffenseTeam)) + geom_point() + geom_smooth(method = "lm") + labs(x = "Number of Fumbles", y = "Total Previous Rushing Yardage", title = "Rushing Yard per Fumble V. Fumbles (2013/2014)")
+```
+
+The Patriots are all the way in the bottom left in first plot and left middle on second plot.
+
+
+Maybe it's worth figuring out the difference between the teams: [**Note:** Used Lagged Variable Strategy]
+```{r, warnings=FALSE, messages=FALSE, results='hide'}
+require(DataCombine)
+NFLStatPlay <- slide(NFLStatPlay, Var = "Fumbles", slideBy = -1, NewVar = "LagFumble")
+NFLStatPlay$DiffFumble <- NFLStatPlay$Fumbles - NFLStatPlay$LagFumble
+NFLStatPlay <- slide(NFLStatPlay, Var = "YardsPerFumble", slideBy = -1, NewVar = "LagYardsPerFumble")
+NFLStatPlay$DiffYardsPerFumble <- NFLStatPlay$YardsPerFumble - NFLStatPlay$LagYardsPerFumble
+NFLStatPlay <- slide(NFLStatPlay, Var = "Yards", slideBy = -1, NewVar = "LagYards")
+NFLStatPlay$DiffYards <- NFLStatPlay$Yards - NFLStatPlay$LagYards
+```
+
+Compare the differences between 2013 and 2014
+
+```{r}
+NFLStatPlayDiff <- filter(NFLStatPlay, SeasonYear == 2014)
+
+ggplot(data = NFLStatPlayDiff, aes(x = DiffFumble, y = DiffYards, group = 1, color = OffenseTeam)) + geom_point() + geom_smooth(method = "lm") + labs(x = "Difference of RushFumbles", y = "Diff Total RushYards", title = "Difference of Fumbles and RushYards in 2013-2014")
+
+```
+
+New England has less rushing yards in 2014, but significantly decreased fumble rate, to effectively zero. Note: they are the dot in the left-most corner
+
+**More Advanced Statistical Analysis/ Research Design**
+
+One approach to test if the Patriots have an uncharacteristically low fumble rate is to do a **logistic regression** on the probability to fumble using the characteristics of total continuous yards prior to a fumble and a term indicating the defense strength (total forced rushing fumbles). The process would have been tedious and lengthy if not construction of loops.
+
+**Step 1:** Figure out each team's defense of forcing rushing fumbles by `SeasonYear`
+
+```{r}
+CleanMaster <- group_by(CleanMaster, DefenseTeam, SeasonYear, PlayType)
+ForcedFumbles <- summarize(CleanMaster, ForcedRushingFumble = sum(IsFumble == 1))
+ForcedFumbles <- filter(ForcedFumbles, PlayType == "RUSH")
+```
+
+The following loop will add the forced rushing fumble category on `CleanMaster`
+
+```{r}
+for (i in SeasonYear) { 
+    for (j in TeamNames) {
+        ForcedFumbles1 <- filter(ForcedFumbles, SeasonYear == i, DefenseTeam == j)
+        CleanMaster$ForceRushFumble[CleanMaster$DefenseTeam == j & 
+        CleanMaster$SeasonYear == i] <- ForcedFumbles1$ForcedRushingFumble
+    }
+}
+```
+
+**Step 2:** Figure out the cumulative rushing yards prior to a given fumble.
+
+Individual snippet code follows closely to "Previous Yards Per fumble" section, but this time we are cumulative sum column rather than grouping a sum. 
+
+First, we need create a zone for each rushing fumble and this has to be done for each individual team. The individual process is shown below
+```{r}
+NEData <- filter(CleanMaster, OffenseTeam == "NE", PlayType == "RUSH")
+NEData <- arrange(NEData, GameDate, GameId, Quarter, desc(Minute), desc(Second)) 
+NEData$Index <- seq(1, sum(NEData$OffenseTeam == "NE"), by = 1)
+Fumbles <- filter(NEData, IsFumble == 1)
+Fumbles$Index
+
+# create Fumble zones
+NEData$Fumble <- 1
+NEData$Fumble[NEData$Index > 12] <- 2
+NEData$Fumble[NEData$Index > 117] <- 3
+NEData$Fumble[NEData$Index > 253] <- 4
+NEData$Fumble[NEData$Index > 274] <- 5
+NEData$Fumble[NEData$Index > 276] <- 6
+NEData$Fumble[NEData$Index > 410] <- 7
+NEData$Fumble[NEData$Index > 425] <- 8
+
+#Get CumulativeSum
+NEData<- mutate(group_by(NEData, Fumble), cumYards = cumsum(Yards))
+```
+
+The looped code is below:
+
+```{r}
+# Set up new empty datatable to collect all the information; make sure you get the right FINAL columns expected.
+# Note column names are taken in automatically
+
+CumCleanMaster <- data.frame(matrix(ncol = 19, nrow = 0))
+CumCleanMaster <- tbl_df(CumCleanMaster)
+
+# The loop; Note the column Last indicate the last entry in 2014, which has yet to recieve a fumble
+for (i in TeamNames) {
+    Data <- filter(CleanMaster, OffenseTeam == i, PlayType == "RUSH")
+    Data <- arrange(Data, GameDate, GameId, Quarter, desc(Minute), desc(Second)) 
+    Data$Index <-seq(1, sum(Data$OffenseTeam == i), by = 1)
+    Fumbles <- filter(Data, IsFumble == 1)
+    IndexFumble <-Fumbles$Index
+    Data$Fumble <- 1
+    for (j in IndexFumble) {
+        Data$Fumble[Data$Index > j] <- match(j, IndexFumble) + 1}
+    Data <- mutate(group_by(Data, Fumble), cumYards = cumsum(Yards))
+    Data$IsLast <- 0
+    Data$IsLast[Data$Index == max(Data$Index)] <- 1
+    CumCleanMaster <- rbind(CumCleanMaster, Data)
+}
+```
+
+Step 3: See distribution of cumulative rushing yards per occurrence of fumble
+
+```{r}
+RushFumbleDis <- filter(CumCleanMaster, IsFumble == 1)
+RushFumbleDisLast <- filter(CumCleanMaster, IsFumble == 1 | IsLast == 1)
+hist(RushFumbleDisLast$cumYards, xlab = "Cumulative Yards", ylab = "Frequency", main = "Cumulative Yards per Fumble Density")
+
+# We see most fumbles occur under small yardage accumulation asserting they likely occur in same game
+
+TopYardage <- select(RushFumbleDisLast, 6, 8, 18, 19)
+arrange(TopYardage, desc(cumYards))
+```
+
+We see the Patriots with a high total.
+
+**Running the logistic regression:**
+
+```{r}
+mylogitCum <- glm(IsFumble ~ cumYards + ForceRushFumble, data = CumCleanMaster, family = "binomial")
+summary(mylogitCum)
+```
+
+The cumulative yards criteria is non-interesting because it is granular, and a fumble in any given time is rare. However, the coefficient for `ForcedRushFumble` is significant. For every additional fumble forced by the defensive team, there is 27% more chance of the offensive team to have a fumble. 
+
+Using elementary probability, we want to find cumulative probability of patriots [any team] fumbling conditional on rushing over 2000 yards
+```{r}
+TotalRushingFumbles = sum(RushFumbleDis$IsFumble == 1) 
+ProbFumbleGreater2000 = sum(RushFumbleDis$cumYards < 2000) / TotalRushingFumbles
+require('scales')
+percent(ProbFumbleGreater2000)
+```
+
+Cumulative Probability Plot:
+```{r}
+plot(ecdf(RushFumbleDis$cumYards), xlab = 'Cumulative Rushing Yards', ylab = 'Cumulative Probability', main = 'Cumulative probability of Rushing Fumble')
+```
+
+The results are clear, it is very rare to rush over 2000 consecutive yards without fumbling. 
+
+**Analysis**
+
+From the data we see the following trends:
+
+At the individual level:
+
+* Patriots reduced rushing fumbles from the previous season, 7, to 0 in 2014. 
+* The cumulative yards per fumble had an unusual peak near the end of the season, which is the time period where accusations were made
+* The patriots did run less in 2014 but that is backed up with better passing.
+
+At the aggregate level:
+
+* There are other teams near the range of 0 to 4. However, the patriots significant improvement is unprecedented
+* The Patriots has over 2000 consecutive yards without fumbling, which is a feat only done by the Seattle Seahawks in 2014. 
+
+**Conclusion:**
+
+* There is no smoking gun statistical evidence to show the patriots were a complete outlier of the pack or they are simply a good team. 
+* However, there is alarm on the rapid improvement the Patriots made in from the 2013 and 2014 without changing their running core that much
+* My results suggest greater inquiry needs to be explored in the differences between the 2013 and 2014 period, which mark the beginning of the deflation strategy
+* Finally, my results do not rule out other teams deflating the ball.
+
+###Hypothesis 2: Ball Deflation Impact on Completion during Wet Conditions.
+
+**TBA:** I need weather data for the 2014 season to do further analysis 
+
+Preparation:
+```{r}
+# Descending Order on Passer Rating [Tom Brady is below Peyton Manning] with constraint of at least 300 completions.
+Quarterbacks <- c("Tony Romo", "Aaron Rodgers", "Ben Roethlisberger", "Peyton Manning", "Tom Brady", "Drew Brees", "Andrew Luck", "Matt Ryan", "Philip Rivers", "Ryan Tannehill")
+
+# Team Names of top quarterbacks, this will be used for GREP function
+QBTeams <- c("DAL", "GB", "PIT", "DEN", "NE", "NO", "IND", "ATL", "SD", "MIA")
+
+# Indoor Stadiums where weather impacts are nill
+IndoorStadiums <- c("DET", "MIN", "ATL", "NO", "STL", "ARI", "IND", "HOU")
+```
+
+### FIN
